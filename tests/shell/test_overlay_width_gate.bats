@@ -19,6 +19,7 @@
 load helpers
 
 GATE="scripts/check_xml_rules.py --rule overlay-width"
+GATE_ABS="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/check_xml_rules.py"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -104,53 +105,6 @@ run_gate() {
     <lv_obj name="overlay_content" width="100%" flex_grow="1"/>
   </view>
 </component>'
-    [ "$status" -eq 0 ]
-}
-
-# ------------------------------------------------------- --staged-only content
-#
-# --staged-only picks its file SET from `git diff --cached`, but must read
-# each file's STAGED content (the index blob), not the working tree. Stage a
-# violation and then revert the working file to something clean, and a gate
-# that reads the working tree reports nothing while the bad blob commits.
-
-GATE_ABS="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/check_xml_rules.py"
-
-setup_tmp_repo() {
-    TMP_REPO="$(mktemp -d "${BATS_TEST_TMPDIR:-${BATS_TMPDIR:-/tmp}}/overlay-width-XXXXXX")"
-    cd "$TMP_REPO" || return 1
-    git init -q
-    git config user.email "test@example.com"
-    git config user.name "Test"
-    mkdir -p ui_xml
-    printf '<component>\n  <view name="x" extends="overlay_panel" title="X"/>\n</component>\n' \
-        > ui_xml/base.xml
-    git add -A && git commit -qm base
-}
-
-@test "--staged-only catches a violation in the STAGED blob, not a reverted working file" {
-    setup_tmp_repo
-    printf '<component>\n  <view name="x" extends="overlay_panel" width="#overlay_width_destination" title="X"/>\n</component>\n' \
-        > ui_xml/base.xml
-    git add ui_xml/base.xml
-    printf '<component>\n  <view name="x" extends="overlay_panel" title="X"/>\n</component>\n' \
-        > ui_xml/base.xml
-    run python3 "$GATE_ABS" --rule overlay-width --staged-only
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"overlay_width_destination"* ]]
-}
-
-@test "--staged-only stays silent on a clean staged file with a dirty violation on disk" {
-    setup_tmp_repo
-    # Genuinely different from the base commit (an added title_tag=), so the
-    # file shows up as staged at all - content byte-identical to HEAD stages
-    # nothing for git to report, which would pass this test for free.
-    printf '<component>\n  <view name="x" extends="overlay_panel" title="X" title_tag="X"/>\n</component>\n' \
-        > ui_xml/base.xml
-    git add ui_xml/base.xml
-    printf '<component>\n  <view name="x" extends="overlay_panel" width="#overlay_width_destination" title="X"/>\n</component>\n' \
-        > ui_xml/base.xml
-    run python3 "$GATE_ABS" --rule overlay-width --staged-only
     [ "$status" -eq 0 ]
 }
 

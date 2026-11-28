@@ -162,9 +162,11 @@ write_and_run() {
 # --- 5. the pre-commit auto-fix must not sweep held-back work ---------------------
 #
 # Structural checks on qc_phase2's XML branch in scripts/qc/phase2.sh. They pin the
-# ORDER the logic depends on, which is the part that is easy to get wrong and impossible
-# to see in review: `git add` stages the whole working-tree file, so re-staging a
-# partially staged file commits hunks its author deliberately held back.
+# ORDER the logic depends on, which is the part that is easy to get wrong and hard
+# to see in review: a working file's new content is not the commit's, so at a commit
+# only the formatted staged copy becomes the index's version, and the working file is
+# overwritten only where its author held nothing back. The behaviour itself is
+# test_commit_hook_staged_content.bats.
 
 @test "auto-fix records pre-existing unstaged work BEFORE reformatting" {
     # The reformat makes every file differ from the index, so a dirty-check run AFTER it
@@ -174,7 +176,7 @@ write_and_run() {
     run bash -c "grep -n 'XML_PRE_DIRTY=\"\"' scripts/qc/phase2.sh | head -1 | cut -d: -f1"
     [ "$status" -eq 0 ]
     pre_line="$output"
-    run bash -c "grep -n 'format-xml.py \$XML_FILES' scripts/qc/phase2.sh | head -1 | cut -d: -f1"
+    run bash -c "grep -n 'XML_FIXED=.*format-xml.py' scripts/qc/phase2.sh | head -1 | cut -d: -f1"
     [ "$status" -eq 0 ]
     fmt_line="$output"
     [ -n "$pre_line" ] && [ -n "$fmt_line" ]
@@ -183,25 +185,25 @@ write_and_run() {
 
 @test "auto-fix decides re-staging from the recorded set, not a live git diff" {
     # A live `git diff` at decision time is the same bug in a different dress.
-    run bash -c "sed -n '/XML_RESTAGE=\"\"; XML_HELD=\"\"/,/^          done/p' scripts/qc/phase2.sh"
+    run bash -c "sed -n '/XML_HELD=\"\"$/,/Formatted in the index only/p' scripts/qc/phase2.sh"
     [ "$status" -eq 0 ]
     contains "XML_PRE_DIRTY" "$output"
     [[ "$output" != *"git diff"* ]]
 }
 
 @test "auto-fix only ever re-stages under --staged-only" {
-    # Outside pre-commit there is no commit to protect, and `git add` from a plain
-    # `make format`-style run would stage files the user never asked to stage.
+    # Outside pre-commit there is no commit to protect, and touching the index from
+    # a plain `make format`-style run would stage files the user never asked to stage.
     #
-    # The guard must sit BETWEEN the reformat and the re-stage. Checking merely for
-    # "some STAGED_ONLY line earlier in the file" is not enough — the pre-dirty scan
-    # above has one too, so deleting this guard would still look satisfied.
+    # The guard must sit BETWEEN the reformat and the index update. Checking merely
+    # for "some STAGED_ONLY line earlier in the file" is not enough — the pre-dirty
+    # scan above has one too, so deleting this guard would still look satisfied.
     run awk '
         /XML_FIXED=\$\(/                     { fmt = NR }
         /if \[ "\$STAGED_ONLY" = true \]; then/ { if (fmt && !add) guard = NR }
-        /git add \$XML_RESTAGE/               { add = NR }
+        /qc_stage_content "\$qc_f" "\$qc_read"/ { add = NR }
         END {
-            if (!add)                 { print "MISSING re-stage"; exit }
+            if (!add)                 { print "MISSING index update"; exit }
             if (!fmt)                 { print "MISSING reformat"; exit }
             print (guard && fmt < guard && guard < add) ? "guarded" : "UNGUARDED"
         }' scripts/qc/phase2.sh

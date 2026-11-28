@@ -4,11 +4,11 @@
 # Pre-push: the full, ungated quality sweep - run against THE COMMITS BEING
 # PUSHED, not against whatever happens to be sitting in the working tree.
 #
-# pre-commit runs --staged-only, which skips any gate that inspects nothing you
-# staged (see qc_trigger_re in scripts/quality-checks.sh). That keeps a one-file
-# commit near a second, but it means a commit can pass locally while a repo-wide
-# invariant it never ran is broken. This hook is where that gets caught, before
-# anything leaves the machine.
+# pre-commit runs --staged-only: the per-file gates (QC_PER_FILE in
+# scripts/quality-checks.sh), each on what is staged. The whole-tree gates
+# (QC_WHOLE_TREE) never run at a commit, so a commit can pass locally while a
+# repo-wide invariant is broken. A push to main, release/* or a tag is where that
+# gets caught, before anything leaves the machine.
 #
 # Why it does not just sweep the working tree: quality-checks.sh reads file
 # CONTENT off disk (CI mode walks src/ and include/ with find). A dirty tree
@@ -52,11 +52,12 @@
 # Doc anchors are not checked here: `make check-doc-anchors` is advisory, takes
 # over a minute, and blocks nothing, so a push would wait on a report it ignores.
 #
-# A push that only updates work branches runs the commit-level gates and leaves
-# the push-only ones (QC_PUSH_ONLY in scripts/quality-checks.sh) and the clang
-# divergence gate to make land-gate and CI: nothing reaches main without both.
-# A push that touches main, release/* or a tag, or any ref this hook cannot
-# read, runs the full sweep as before.
+# A push that only updates work branches runs no quality sweep. Each commit's hook
+# judged its staged files, and make land-gate and CI run every gate before anything
+# reaches main: nothing reaches main without both. Patch drift still runs, since it
+# describes this tree's lib/ and no gate on another host can see it. A push that
+# touches main, release/* or a tag, or any ref this hook cannot read, runs the full
+# sweep as before.
 #
 # Escape hatches: HELIX_PREPUSH_IN_PLACE=1 forces the old in-place behaviour,
 # HELIX_PREPUSH_FULL=1 sweeps a gated tip anyway, and `git push --no-verify`
@@ -97,17 +98,20 @@ for protected_sha in $PROTECTED_SHAS; do
     exit 1
 done
 [ -z "${HELIX_PREPUSH_FULL:-}" ] || WORK_BRANCHES_ONLY=""
-# Set both ways, so a value the caller exported never reaches a full sweep.
-SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=0 HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
+SWEEP_ENV="HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
 SWEEP_NOTE="full quality sweep (pre-commit only checked what you staged)"
-if [ -n "$WORK_BRANCHES_ONLY" ]; then
-    SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=1 HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
-    SWEEP_NOTE="work-branch sweep: the commit-level gates; make land-gate and CI run the rest before main (HELIX_PREPUSH_FULL=1 runs everything)"
-fi
 
 # shellcheck source=lib/push-range.sh
 . "$(dirname "$0")/lib/push-range.sh"
 BASE="$(push_base "$REMOTE_SHA" "$TARGET")" || BASE=""
+
+if [ -n "$WORK_BRANCHES_ONLY" ]; then
+    echo "🚦 pre-push: a work-branch push runs no quality sweep here."
+    echo "   The commit hook judged each commit's staged files; make land-gate and CI"
+    echo "   run every gate before anything reaches main (HELIX_PREPUSH_FULL=1 runs everything)."
+    prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || exit 1
+    exit 0
+fi
 
 # shellcheck source=lib/land-gate-stamp.sh
 . "$(dirname "$0")/lib/land-gate-stamp.sh"

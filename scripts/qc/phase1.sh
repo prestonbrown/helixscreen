@@ -14,11 +14,20 @@ qc_phase1() {
 
 # Merge Conflict Markers Check
 echo "⚠️  Checking for merge conflict markers..."
+# Each file is read as the commit will hold it, at a commit (qc_read_path), and
+# reported under its own name.
 if [ -n "$FILES" ]; then
-  CONFLICT_FILES=$(echo "$FILES" | xargs grep -l "^<<<<<<< \|^=======$\|^>>>>>>> " 2>/dev/null || true)
+  CONFLICT_FILES=""
+  for qc_f in $FILES; do
+    qc_file="$(qc_read_path "$qc_f")"
+    [ -f "$qc_file" ] || continue
+    if grep -q "^<<<<<<< \|^=======$\|^>>>>>>> " "$qc_file" 2>/dev/null; then
+      CONFLICT_FILES="$CONFLICT_FILES $qc_f"
+    fi
+  done
   if [ -n "$CONFLICT_FILES" ]; then
     echo "❌ Merge conflict markers found in:"
-    echo "$CONFLICT_FILES" | sed 's/^/   /'
+    echo "$CONFLICT_FILES" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
     EXIT_CODE=1
   else
     echo "✅ No merge conflict markers"
@@ -32,7 +41,16 @@ echo ""
 # Trailing Whitespace Check
 echo "🧹 Checking for trailing whitespace..."
 if [ -n "$FILES" ]; then
-  TRAILING_WS=$(echo "$FILES" | xargs grep -n "[[:space:]]$" 2>/dev/null || true)
+  TRAILING_WS=""
+  for qc_f in $FILES; do
+    qc_file="$(qc_read_path "$qc_f")"
+    [ -f "$qc_file" ] || continue
+    qc_hits="$(grep -n "[[:space:]]$" "$qc_file" 2>/dev/null | sed "s|^|$qc_f:|" || true)"
+    if [ -n "$qc_hits" ]; then
+      TRAILING_WS="$TRAILING_WS$qc_hits
+"
+    fi
+  done
   if [ -n "$TRAILING_WS" ]; then
     echo "⚠️  Found trailing whitespace:"
     echo "$TRAILING_WS" | head -10 | sed 's/^/   /'
@@ -61,11 +79,11 @@ if [ -n "$XML_FILES" ]; then
   if command -v xmllint >/dev/null 2>&1; then
     XML_ERRORS=0
     for xml in $XML_FILES; do
-      if [ -f "$xml" ]; then
+      if [ -f "$(qc_read_path "$xml")" ]; then
         # Use --recover to continue on namespace errors (LVGL uses colon syntax like
         # style_arc_color:indicator which xmllint interprets as namespace prefixes).
         # Filter: only keep error lines (file:line: format) and exclude namespace errors.
-        XMLLINT_OUTPUT=$(xmllint --noout --recover "$xml" 2>&1 | grep -E "^[^:]+:[0-9]+:" | grep -v "namespace error" || true)
+        XMLLINT_OUTPUT=$(qc_xmllint "$xml" | grep -E "^[^:]+:[0-9]+:" | grep -v "namespace error" || true)
         if [ -n "$XMLLINT_OUTPUT" ]; then
           echo "❌ Invalid XML: $xml"
           echo "$XMLLINT_OUTPUT"

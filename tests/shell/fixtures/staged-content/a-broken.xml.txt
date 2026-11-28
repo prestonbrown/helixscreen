@@ -1,0 +1,5 @@
+<component>
+  <view>
+    <lv_obj>
+  </view>
+</component>

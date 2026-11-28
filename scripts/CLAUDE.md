@@ -108,7 +108,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 
 | Script | Purpose |
 |--------|---------|
-| `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
+| `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache. Every gate has a tier: per-file gates (`QC_PER_FILE`) run at a commit on the staged content, whole-tree gates (`QC_WHOLE_TREE`) in the full sweeps only (a push to main, `release/*` or a tag, land-gate, CI) |
 | `qc_file_cache.py` | Per-file facts the registration and ESP32 gates share, cached by file content under `build/.qc-cache/` |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
 | `path_scope.py` | Whether a gate skips a file by directory name, judged on its repo-relative path so a worktree is scanned |
@@ -137,7 +137,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_esp32_stub_coverage.py` | Fail on a virtual or constructor the firmware links that only an excluded file defines; `ESP32_STUB_OK` |
 | `check_overlay_boilerplate.py` | Shrink-only ratchet on overlay boilerplate `OverlayBase` replaces |
 | `check_duplicate_xml_names.py` | Fail on a widget `name=` used twice in one XML file |
-| `check_xml_rules.py` | One table of rules over `ui_xml/`, a run reading each file once: `header-actions`, `overlay-width`, `icon-names`, `responsive-token-scope`, `modal-chrome-budget`, `shipped-spacing-tokens`. Runs as `qc_xml_rules` on every commit. Meta-tests: `tests/shell/test_xml_rules_gate.bats` and one file per rule (`test_<rule>_gate.bats`) |
+| `check_xml_rules.py` | One table of rules over `ui_xml/`, a run reading each file once: `header-actions`, `overlay-width`, `icon-names`, `responsive-token-scope`, `modal-chrome-budget`, `shipped-spacing-tokens`. Runs as `qc_xml_rules` on every commit: at a commit on the XML written from the index, five rules. Meta-tests: `tests/shell/test_xml_rules_gate.bats` and one file per rule (`test_<rule>_gate.bats`) |
 | `check_raw_this_queue_update.py` | Ratchet on `queue_update([this, ...])` in `src/` |
 | `check_head_labels.py` | Fail on a head named by a G-code tool number or mounted by a raw `T<n>` in `src/ui` and `src/printer`; `HEAD_LABEL_OK`. Gated as `qc_head_labels` |
 | `check_hardcoded_pixels.py` | Ratchet on raw pixel literals where a design token belongs; over the baseline warns |
@@ -178,7 +178,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_no_mocks.py` | The land-gate `no-mocks` row: mock code a packaged binary would carry |
 | `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image; by hand only, CI's `esp32-build` is the gate |
 | `check_toolhead_census.py` | Commit-time version of the machine-moving control census tests |
-| `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale |
+| `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale; `--write-table PATH` writes the table the index's tokens render, for the commit hook to stage |
 | `scan_double_binds.py` | Inventory of `ui_xml/` widgets with two or more bindings on one state or flag; `--emit-cpp` writes `tests/unit/double_bind_widgets.inc`, `--check` fails when it lags |
 | `check_old_toolchain.py` | Syntax-check `src/` against the older cross toolchains' compiler (g++-10) |
 | `perf-farm-check.sh` | Pre-release CPU budget check across the physical test farm |

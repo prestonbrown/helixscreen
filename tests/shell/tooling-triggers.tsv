@@ -44,6 +44,7 @@ tests/shell/test_cloud_env_setup.bats	scripts/cloud/env-setup.sh
 tests/shell/test_cloud_session_start.bats	Makefile scripts/cloud/session-start.sh
 tests/shell/test_code_lint.bats	.github/workflows/nightly.yml include/ams_backend_afc.h include/lane_source_store.h include/subject_managed_panel.h mk/tests.mk scripts/check_source_rules.py scripts/check_tool_labels.sh scripts/check_vacuous_tests.py scripts/check_vendor_branches.py scripts/code_lint.sh scripts/qc/code_lint.sh scripts/qc/test_lint.sh scripts/qc/translation_coverage.sh scripts/qc/ui_lint.sh scripts/quality-checks.sh scripts/ratchet.py scripts/source_strip.py src/application/printer_switch_flow.cpp src/core/observer_guard.cpp src/printer/ams_backend_mock.cpp src/printer/spoolman_manager.cpp .github/workflows/quality.yml scripts/gate_select.py
 tests/shell/test_comment_archaeology_gate.bats	scripts/check_comment_archaeology.py scripts/check_constant_naming.py scripts/mutate_diff.py scripts/qc/comment_archaeology.sh scripts/quality-checks.sh scripts/ratchet.py
+tests/shell/test_commit_hook_staged_content.bats	scripts/quality-checks.sh scripts/qc/ scripts/format-xml.py scripts/audit_codebase.sh tests/shell/fixtures/staged-content/
 tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh scripts/lib/installer/competing_uis.sh scripts/lib/installer/uninstall.sh
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
 tests/shell/test_copyright_gate.bats	scripts/qc/copyright.sh scripts/qc/_lib.sh scripts/quality-checks.sh
@@ -158,7 +159,8 @@ tests/shell/test_pytest_asyncio_deps_gate.bats	moonraker-plugin/tests/test_helix
 tests/shell/test_qc_file_cache.bats	scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/check_required_names.py scripts/qc_file_cache.py scripts/ratchet.py scripts/source_strip.py
 tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
-tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
+tests/shell/test_quality_driver.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
+tests/shell/test_quality_tiers.bats	scripts/quality-checks.sh scripts/qc/
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
 tests/shell/test_ratchet_gate.bats	scripts/qc/_lib.sh scripts/qc/design_tokens.sh scripts/quality-checks.sh scripts/ratchet.py
 tests/shell/test_ratchet_report.bats	scripts/check_growth_ratchets.py scripts/check_hardcoded_pixels.py scripts/check_orphan_callbacks.py scripts/qc_file_cache.py scripts/ratchet_report.py scripts/design_ratchets.py
@@ -207,7 +209,7 @@ tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh s
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py scripts/source_strip.py src/ui/notify/ui_toast_manager.cpp tests/ui_test_utils.cpp
 tests/shell/test_test_widget_registry_gate.bats	scripts/check_test_widget_registry.py scripts/qc/_lib.sh scripts/qc/test_widget_registry.sh
-tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
+tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/qc/theme_artifacts.sh scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
 tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-lib.mk mk/patches.mk mk/pi-dual-link.mk mk/rules.mk mk/splash.mk mk/tests.mk mk/tools.mk mk/watchdog.mk
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/source_strip.py scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
 tests/shell/test_timer_destructor_cancel_gate.bats	scripts/check_timer_destructor_cancel.py scripts/qc/decl_ui.sh scripts/source_strip.py
@@ -236,7 +238,7 @@ tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
 tests/shell/test_xml_create_registered_gate.bats	scripts/check_source_rules.py scripts/qc/xml_create_registered.sh scripts/quality-checks.sh
 tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh
 tests/shell/test_xml_rules_gate.bats	scripts/check_xml_rules.py scripts/path_scope.py scripts/qc/_lib.sh scripts/qc/xml_rules.sh scripts/quality-checks.sh scripts/source_strip.py scripts/staged_content.py
-tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
+tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh scripts/qc/xml_schema.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp
 tests/shell/test_zoneinfo_bundle_gate.bats	assets/zoneinfo/ scripts/regen_zoneinfo.sh src/system/display_settings_manager.cpp
 tests/shell/test_doc_images_gate.bats	scripts/check_doc_images.py scripts/qc/doc_images.sh scripts/quality-checks.sh

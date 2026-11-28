@@ -415,7 +415,11 @@ about (`writing-tests` § "Lint gates and checkers").
 A gate that must not match inside comments or string literals blanks them with
 `scripts/source_strip.py` (`blank_cxx`, `blank_xml_comments`), never a private copy.
 
-quality-checks.sh runs every gate over the real tree (pre-push, land-gate, CI), so a
+quality-checks.sh runs every gate over the real tree in a full sweep (a push to main,
+`release/*` or a tag, land-gate, CI); at a commit (`--staged-only`) it runs only the
+per-file tier, `QC_PER_FILE`, each gate on the staged content as the commit will hold it
+(`tests/shell/test_commit_hook_staged_content.bats`), and a gate that needs other files
+belongs to `QC_WHOLE_TREE` (`tests/shell/test_quality_tiers.bats`). A
 meta-test pins behaviour on fixtures and the `scripts/qc/` wiring, never the repo verdict. Lints too small for a script of their own are functions in
 `scripts/code_lint.sh`, run as `qc_code_lint`, `qc_test_lint` and `qc_ui_lint`, with
 their fixture tests in `test_code_lint.bats`.

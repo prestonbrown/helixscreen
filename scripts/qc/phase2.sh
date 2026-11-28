@@ -89,14 +89,25 @@ if [ -n "$FILES" ]; then
       # clean. Each worker records the file it looked at in CF_SEEN, and the
       # verdict below refuses a probe that covered fewer files than it was
       # given. xargs's own stderr stays visible for the same reason.
+      # At a commit each file is read as the commit will hold it: $3 is the
+      # directory of staged copies, empty in a full sweep. The copy is read on
+      # standard input with --assume-filename naming the real path, which keeps the
+      # style lookup where that path has it, a nearer .clang-format included.
       < "$CF_CAND" xargs -P "${QC_JOBS:-4}" -I{} sh -c '
         f="$1"
         printf "%s\n" "$f" >> "$2"
-        [ -f "$f" ] || exit 0
-        head -5 "$f" | grep -qiE "auto-generated|DO NOT EDIT" && exit 0
-        "$0" --dry-run --Werror "$f" >/dev/null 2>&1 || printf "%s
+        if [ -n "$3" ]; then
+          [ -f "$3/$f" ] || exit 0
+          head -5 "$3/$f" | grep -qiE "auto-generated|DO NOT EDIT" && exit 0
+          "$0" --dry-run --Werror "--assume-filename=$4/$f" < "$3/$f" >/dev/null 2>&1 || printf "%s
 " "$f"
-      ' "$CF_BIN" {} "$CF_SEEN" | sort > "$CF_DIRTY"
+        else
+          [ -f "$f" ] || exit 0
+          head -5 "$f" | grep -qiE "auto-generated|DO NOT EDIT" && exit 0
+          "$0" --dry-run --Werror "$f" >/dev/null 2>&1 || printf "%s
+" "$f"
+        fi
+      ' "$CF_BIN" {} "$CF_SEEN" "$QC_STAGED_DIR" "${REPO_ROOT:-$PWD}" | sort > "$CF_DIRTY"
       CF_EXAMINED=$(grep -c . "$CF_SEEN")
       # Leading space is load-bearing: a message below prints "git add$FORMAT_ISSUES".
       FORMAT_ISSUES="$(sed 's|^| |' "$CF_DIRTY" | tr -d '
@@ -115,8 +126,27 @@ if [ -n "$FILES" ]; then
       if [ -n "$FORMAT_ISSUES" ] && [ "$AUTO_FIX" = true ]; then
         while IFS= read -r file; do
           [ -n "$file" ] || continue
-          "$CF_BIN" -i "$file"
-          echo "   ✓ Auto-formatted: $file"
+          if [ "$STAGED_ONLY" = true ]; then
+            # The formatter rewrites the staged content, and that becomes the
+            # index's version. The working file gets it too only where it holds
+            # nothing unstaged (CF_PRE_DIRTY), all that `git add` could have taken.
+            qc_formatted="$QC_TMP/clang-format.formatted"
+            if "$CF_BIN" "--assume-filename=${REPO_ROOT:-$PWD}/$file" \
+                 < "$(qc_read_path "$file")" > "$qc_formatted" &&
+               qc_stage_content "$file" "$qc_formatted"; then
+              # The staged copy is the index's now: the gates that fan out
+              # after this one read it, not the text from before the format.
+              [ -z "$QC_STAGED_DIR" ] || cp "$qc_formatted" "$QC_STAGED_DIR/$file"
+              case "$CF_PRE_DIRTY" in
+                *" $file "*) ;;
+                *) cp "$qc_formatted" "$file" ;;
+              esac
+              echo "   ✓ Auto-formatted: $file"
+            fi
+          else
+            "$CF_BIN" -i "$file"
+            echo "   ✓ Auto-formatted: $file"
+          fi
         done < "$CF_DIRTY"
       fi
       rm -f "$CF_CAND" "$CF_DIRTY" "$CF_SEEN"
@@ -145,36 +175,16 @@ if [ -n "$FILES" ]; then
         if [ "$AUTO_FIX" = true ]; then
           # Auto-stage formatted files when in pre-commit mode (--staged-only)
           if [ "$STAGED_ONLY" = true ]; then
-            # Re-stage only files with NOTHING unstaged. `git add` takes the whole
-            # working-tree file, so on a partially staged file it would sweep in
-            # hunks deliberately held back - the commit would carry work its author
-            # never staged. Those get formatted on disk and named instead. Same
-            # rule the XML formatter below applies.
-            CF_RESTAGE=""; CF_HELD=""
+            # A file with unstaged edits was formatted in the index alone: its
+            # working copy keeps those edits and the lines as their author wrote them.
+            CF_HELD=""
             for cf_f in $FORMAT_ISSUES; do
               case "$CF_PRE_DIRTY" in
                 *" $cf_f "*) CF_HELD="$CF_HELD $cf_f" ;;
-                *)           CF_RESTAGE="$CF_RESTAGE $cf_f" ;;
               esac
             done
-            if [ -n "$CF_RESTAGE" ]; then
-              # shellcheck disable=SC2086  # word splitting is the point: a path list
-              git add $CF_RESTAGE
-              echo "✅ Auto-formatted and re-staged files:"
-              echo "$CF_RESTAGE" | tr ' ' '\n' | grep -v '^$' | sed 's/^/   /'
-            fi
             if [ -n "$CF_HELD" ]; then
-              CF_HELD_NEW=""
-              for cf_f in $CF_HELD; do
-                printf '%s\n' $CLANG_FORMAT_BASELINE | grep -Fxq "$cf_f" || CF_HELD_NEW="$CF_HELD_NEW $cf_f"
-              done
-              if [ -n "$CF_HELD_NEW" ]; then
-                echo "❌ Formatted on disk but NOT re-staged (partially staged):$CF_HELD_NEW"
-                echo "   This commit would carry unformatted C++. Stage it with: git add$CF_HELD_NEW"
-                EXIT_CODE=1
-              else
-                echo "⚠️  Formatted on disk but NOT re-staged (partially staged, baselined):$CF_HELD"
-              fi
+              echo "ℹ️  Formatted in the index only, the working copy keeps its unstaged edits:$CF_HELD"
             fi
           else
             echo "✅ Auto-formatted files - re-stage them before committing:"
@@ -250,7 +260,13 @@ if [ -n "$XML_FILES" ]; then
     # `2>/dev/null` meant a file it could never read produced no visible output at all.
     # That, plus process_file() returning the same value for "parse failed" and "already
     # clean", is how three LVGL state-selector layouts drifted unnoticed.
-    if $VENV_PYTHON scripts/format-xml.py --check $XML_FILES; then
+    # At a commit each file as the commit will hold it (qc_read_path); the
+    # formatter names the copy it wrote, and that is mapped back below.
+    XML_READ=()
+    for qc_f in $XML_FILES; do
+      XML_READ+=("$(qc_read_path "$qc_f")")
+    done
+    if $VENV_PYTHON scripts/format-xml.py --check "${XML_READ[@]}"; then
       echo "✅ All XML files properly formatted"
     elif [ "$AUTO_FIX" = true ]; then
       # Close the loop the way qc_phase2 does for C++: this auto-fix is the only
@@ -263,29 +279,30 @@ if [ -n "$XML_FILES" ]; then
           git diff --quiet -- "$f" || XML_PRE_DIRTY="$XML_PRE_DIRTY $f "
         done
       fi
-      XML_FIXED=$($VENV_PYTHON scripts/format-xml.py $XML_FILES 2>&1 \
+      # In a full sweep the formatter rewrote the files it names. At a commit it
+      # rewrote their staged copies, so each result becomes the index's version,
+      # and the working file's too only where that holds nothing unstaged:
+      # `git add` takes the whole working file, hunks held back included.
+      XML_FIXED=$($VENV_PYTHON scripts/format-xml.py "${XML_READ[@]}" 2>&1 \
                   | sed -n 's/^Formatted: //p')
       if [ -n "$XML_FIXED" ]; then
-        for f in $XML_FIXED; do echo "   ✓ Auto-formatted: $f"; done
-        if [ "$STAGED_ONLY" = true ]; then
-          # Re-stage only files with NOTHING unstaged. `git add` takes the whole
-          # working-tree file, so on a partially staged file it would sweep in
-          # hunks deliberately held back — the commit would carry work its author
-          # never staged. Those get formatted on disk and named instead.
-          XML_RESTAGE=""; XML_HELD=""
-          for f in $XML_FIXED; do
+        XML_HELD=""
+        while IFS= read -r qc_read; do
+          [ -n "$qc_read" ] || continue
+          if [ "$STAGED_ONLY" = true ]; then
+            qc_f="${qc_read#"$QC_STAGED_DIR"/}"
+            qc_stage_content "$qc_f" "$qc_read" || continue
+            echo "   ✓ Auto-formatted: $qc_f"
             case "$XML_PRE_DIRTY" in
-              *" $f "*) XML_HELD="$XML_HELD $f" ;;
-              *)        XML_RESTAGE="$XML_RESTAGE $f" ;;
+              *" $qc_f "*) XML_HELD="$XML_HELD $qc_f" ;;
+              *) cp "$qc_read" "$qc_f" ;;
             esac
-          done
-          # shellcheck disable=SC2086  # word splitting is the point: a path list
-          [ -n "$XML_RESTAGE" ] && git add $XML_RESTAGE && \
-            echo "✅ Re-staged:$XML_RESTAGE"
-          if [ -n "$XML_HELD" ]; then
-            echo "⚠️  Formatted but NOT re-staged (partially staged):$XML_HELD"
-            echo "ℹ️  This commit still carries unformatted XML. Stage it with: git add$XML_HELD"
+          else
+            echo "   ✓ Auto-formatted: $qc_read"
           fi
+        done <<< "$XML_FIXED"
+        if [ -n "$XML_HELD" ]; then
+          echo "ℹ️  Formatted in the index only, the working copy keeps its unstaged edits:$XML_HELD"
         fi
       else
         # --check disagreed with a real run: the file is unparseable, not unformatted.
@@ -306,13 +323,14 @@ if [ -n "$XML_FILES" ]; then
     echo "ℹ️  Python formatter not available, using xmllint (basic check only)"
     FORMAT_ISSUES=""
     for file in $XML_FILES; do
-      if [ -f "$file" ]; then
+      qc_file="$(qc_read_path "$file")"
+      if [ -f "$qc_file" ]; then
         # Check if file needs formatting (xmllint --format for consistent indentation)
-        FORMATTED=$(xmllint --format "$file" 2>/dev/null || echo "PARSE_ERROR")
+        FORMATTED=$(xmllint --format "$qc_file" 2>/dev/null || echo "PARSE_ERROR")
         if [ "$FORMATTED" = "PARSE_ERROR" ]; then
           echo "⚠️  Cannot format $file (may have XML errors)"
         else
-          ORIGINAL=$(cat "$file")
+          ORIGINAL=$(cat "$qc_file")
           if [ "$FORMATTED" != "$ORIGINAL" ]; then
             FORMAT_ISSUES="$FORMAT_ISSUES $file"
           fi
@@ -338,26 +356,22 @@ fi
 echo ""
 
 # Build Verification
-if [ "$STAGED_ONLY" = true ]; then
+#
+# A commit compiles nothing. Whoever commits a source has just built or
+# syntax-checked it, what follows reads the working tree rather than the staged
+# content, and land-gate builds everything once per batch. HELIX_QC_ALL_AT_COMMIT=1
+# runs it: each staged source, and for each staged header one source that includes
+# it (the case that breaks OTHER units). HELIX_QC_FULL_BUILD=1 builds the app here
+# instead, and runs on its own.
+if [ "$STAGED_ONLY" = true ] &&
+   { [ "${HELIX_QC_ALL_AT_COMMIT:-0}" = 1 ] || [ -n "${HELIX_QC_FULL_BUILD:-}" ]; }; then
   SECTION_START=$(date +%s)
   echo -n "🔨 Verifying staged sources compile..."
 
-  # A commit checks that what it stages compiles, in seconds: each staged
-  # source, and for each staged header one source that includes it (the case
-  # that breaks OTHER units). Above QC_COMPILE_CAP units it compiles a sample and
-  # says so. Linking the app is minutes, so it is pre-push's job: its clang gate
-  # syntax-checks every changed unit and the header's dependents on a push to main,
-  # and land-gate builds and tests the result.
-  # HELIX_QC_ALL_AT_COMMIT=1 compiles every unit; HELIX_QC_FULL_BUILD=1 builds the
-  # app here instead.
   qc_staged_compile_units "$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
-  # Only a run that will compile units has any to skip.
-  [ -n "${HELIX_QC_FULL_BUILD:-}" ] || [ ! -f compile_commands.json ] ||
-    [ "${HELIX_QC_ALL_AT_COMMIT:-0}" = 1 ] || qc_sample_compile_units "$QC_COMPILE_CAP"
   # Named for this gate, so qc_keep_gate_log keeps the whole of it on a failure, and
   # in QC_TMP, because a fixed path is overwritten by any other session's commit.
   QC_SYNTAX_LOG="$QC_TMP/phase2.syntax.log"
-  qc_compile_sample_note
 
   if [ -n "${HELIX_QC_FULL_BUILD:-}" ]; then
     # Bounded -j (qc_build_jobs): this build runs from a commit hook.
@@ -391,7 +405,6 @@ if [ "$STAGED_ONLY" = true ]; then
     section_time $SECTION_START
     echo ""
     echo "✅ $(grep '^summary:' "$QC_SYNTAX_LOG" || echo 'staged sources compile') - pre-push checks the rest"
-    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
   else
     QC_SYNTAX_RC=$?
@@ -405,16 +418,14 @@ if [ "$STAGED_ONLY" = true ]; then
     fi
     # Passing units are dropped first: they would push the error out of the window.
     grep -v ': ok (' "$QC_SYNTAX_LOG" | sed -n '1,40p'
-    [ -z "$QC_SAMPLE_NOTE" ] || echo "$QC_SAMPLE_NOTE"
     EXIT_CODE=1
   fi
 
   # Say what was actually verified. The check above compiles the WORKING TREE,
   # which in --staged-only mode is not necessarily what is being committed: a
   # rename touching five files and staged for four builds clean here and breaks
-  # in CI, because the fifth file is on disk but not in the commit. pre-push
-  # gates the real thing (it sweeps an isolated checkout of the pushed commit),
-  # so this is a warning rather than a failure - but an unqualified
+  # in CI, because the fifth file is on disk but not in the commit. CI builds the
+  # commit itself, so this is a warning rather than a failure - but an unqualified
   # "Build successful" over unverified content is how the wrong thing gets
   # trusted.
   if [ "$STAGED_ONLY" = true ]; then
@@ -424,8 +435,8 @@ if [ "$STAGED_ONLY" = true ]; then
       echo "⚠️  The compile check read the WORKING TREE, not the staged commit"
       echo "   These source files are modified but NOT staged:"
       echo "$UNSTAGED_SRC" | sed 's/^/     /'
-      echo "   If the commit depends on them it will fail in CI. pre-push checks"
-      echo "   the pushed commit in isolation and will catch it before it leaves."
+      echo "   If the commit depends on them it will fail in CI, which builds the"
+      echo "   commit itself."
     fi
   fi
   echo ""

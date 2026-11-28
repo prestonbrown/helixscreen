@@ -125,7 +125,7 @@ jobs:
         ./scripts/quality-checks.sh
 ```
 
-**Checks performed by `scripts/quality-checks.sh`:** every gate is one file, `scripts/qc/<gate>.sh`, with a `QC_TRIGGER_qc_<gate>` path regex that decides whether `--staged-only` runs it; a full sweep (CI) runs them all in parallel. `scripts/qc/copyright.sh` (copyright headers, test and generated files excluded) runs first, then the gates (lint, XML, translations, doc anchors, ESP32 checks, and so on). `ls scripts/qc/` is the list; `scripts/qc_timing.py` shows where a run's time went.
+**Checks performed by `scripts/quality-checks.sh`:** every gate is one file, `scripts/qc/<gate>.sh`, with a tier: per-file gates (`QC_PER_FILE`) run at a commit on the staged content, each behind a `QC_TRIGGER_qc_<gate>` path regex; whole-tree gates (`QC_WHOLE_TREE`) run only in a full sweep, which runs every gate in parallel. `scripts/qc/copyright.sh` (copyright headers, test and generated files excluded) runs first, then the gates (lint, XML, translations, doc anchors, ESP32 checks, and so on). `ls scripts/qc/` is the list; `scripts/qc_timing.py` shows where a run's time went.
 
 ## CI Watch
 

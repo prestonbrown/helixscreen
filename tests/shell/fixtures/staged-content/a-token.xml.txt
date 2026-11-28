@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<component>
+  <consts>
+    <px name="space_probe" value="6"/>
+  </consts>
+  <view>
+    <lv_obj/>
+  </view>
+</component>

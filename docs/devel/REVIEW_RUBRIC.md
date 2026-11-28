@@ -6,7 +6,7 @@ human, `/code-review`, or a reviewer subagent is doing them.
 Two rules govern how to use it:
 
 **Don't re-check what a gate already checks.** `scripts/quality-checks.sh` runs on every commit
-and in CI. Reviewer attention spent on copyright headers or `printf` calls is attention not
+and in every full sweep (a push to main, `land-gate`, CI). Reviewer attention spent on copyright headers or `printf` calls is attention not
 spent on the things that actually ship crashes. The machine-checked list is at the bottom.
 
 **Rank by what has actually broken.** The tiers below are ordered by real production impact in

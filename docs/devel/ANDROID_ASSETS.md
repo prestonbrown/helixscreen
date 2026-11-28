@@ -118,7 +118,8 @@ against each other.
 ## The gate
 
 `scripts/check_android_asset_staging.py` runs from `scripts/quality-checks.sh`
-(`scripts/qc/design_pixels.sh`, so both the pre-commit hook and CI's `quality.yml`). It **fails** on:
+(`scripts/qc/design_pixels.sh`, a whole-tree gate: a push to main, `make land-gate` and CI's
+`quality.yml` run it). It **fails** on:
 
 - any tracked file under `android/app/src/main/assets/`;
 - any `Makefile` / `mk/*.mk` / `scripts/*` line that *writes* into that path —

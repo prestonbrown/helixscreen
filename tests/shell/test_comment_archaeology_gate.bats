@@ -349,9 +349,9 @@ stage_cpp() {
 
 @test "phrases: the commit hook runs the phrase check on staged sources" {
     eval "$(grep '^QC_ALL=' scripts/quality-checks.sh)"
-    eval "$(grep '^QC_PUSH_ONLY=' scripts/quality-checks.sh)"
+    eval "$(grep '^QC_PER_FILE=' scripts/quality-checks.sh)"
     [[ " $QC_ALL " == *" qc_comment_archaeology "* ]] || fail "not in QC_ALL"
-    [[ " $QC_PUSH_ONLY " != *" qc_comment_archaeology "* ]] || fail "deferred to push"
+    [[ " $QC_PER_FILE " == *" qc_comment_archaeology "* ]] || fail "not in the per-file tier: a commit would not run it"
     local re
     re="$(qc_trigger comment_archaeology)"
     [[ "src/ui/panel.cpp" =~ $re ]] || fail "src/ui/panel.cpp does not trigger it"

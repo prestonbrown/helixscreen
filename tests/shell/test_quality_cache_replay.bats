@@ -60,20 +60,6 @@ with_stamp_helpers() {
   lacks "file(s)" "$output"
 }
 
-@test "a work-branch pass never stands in for a full sweep; a full pass covers both" {
-  mkdir -p "$(dirname "$STAMP")"
-  : > "$STAMP.commit-level"
-  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
-  [ -z "$output" ]
-  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_covering "$STAMP"'
-  [ "$output" = "$STAMP.commit-level" ]
-  run with_stamp_helpers 'HELIX_QC_SKIP_PUSH_ONLY=1 qc_stamp_for_run "$STAMP"'
-  [ "$output" = "$STAMP.commit-level" ]
-  : > "$STAMP"
-  run with_stamp_helpers 'qc_stamp_covering "$STAMP"'
-  [ "$output" = "$STAMP" ]
-}
-
 @test "a gate that failed or ran long keeps its logs under a timestamped dir; a quick pass does not" {
   local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
   mkdir -p "$tmp"

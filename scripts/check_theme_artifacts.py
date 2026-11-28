@@ -7,7 +7,9 @@ top-level ui_xml/*.xml:
 
   src/generated/theme_token_table.cpp   `make regen-tokens`, pure Python, so it
                                         is regenerated in memory and compared
-                                        byte for byte.
+                                        byte for byte. The commit hook asks for
+                                        that render (--write-table) and stages
+                                        it.
   tests/fixtures/theme_const_golden.txt the [theme_pins] snapshot, which only
                                         the test binary can produce (it resolves
                                         tokens through LVGL at three
@@ -28,10 +30,12 @@ dropped XML token whose name C++ also registers) can never join the commit, so
 HELIX_GOLDEN_CURRENT=1 records that it was regenerated and is current.
 
 tools/xml-linter/schema/schema.json is the third artefact these tokens feed;
-scripts/qc/xml_linter.sh owns it.
+scripts/qc/xml_schema.sh owns it.
 
-usage: check_theme_artifacts.py [--staged-only]
+usage: check_theme_artifacts.py [--staged-only] [--write-table PATH]
   --staged-only  read the index (the commit) and compare against HEAD
+  --write-table  with --staged-only, write the table the index's tokens render
+                 to PATH instead of failing; the golden is still judged
 """
 
 from __future__ import annotations
@@ -95,6 +99,9 @@ def golden_problems(old_tokens: dict, new_tokens: dict, old_golden: str,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--staged-only", action="store_true")
+    ap.add_argument("--write-table", metavar="PATH",
+                    help="with --staged-only, write the rendered table to PATH "
+                         "instead of failing")
     args = ap.parse_args()
 
     if args.staged_only:
@@ -105,10 +112,17 @@ def main() -> int:
     new_tokens = gen_theme_tokens.collect(new_files)
 
     failed = False
-    if table != gen_theme_tokens.render(new_tokens):
-        failed = True
-        print(f"❌ {TABLE} does not match the tokens in ui_xml/*.xml")
-        print(f"   Regenerate and commit it: make regen-tokens && git add {TABLE}")
+    written = False
+    rendered = gen_theme_tokens.render(new_tokens)
+    if table != rendered:
+        if args.staged_only and args.write_table:
+            with open(args.write_table, "w") as f:
+                f.write(rendered)
+            written = True
+        else:
+            failed = True
+            print(f"❌ {TABLE} does not match the tokens in ui_xml/*.xml")
+            print(f"   Regenerate and commit it: make regen-tokens && git add {TABLE}")
 
     if args.staged_only:
         has_head = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"],
@@ -129,7 +143,10 @@ def main() -> int:
 
     if failed:
         return 1
-    print(f"✅ Theme artefacts match {len(new_tokens)} tokens in ui_xml/*.xml")
+    if written:
+        print(f"✅ {TABLE} regenerated from the staged tokens ({len(new_tokens)} tokens)")
+    else:
+        print(f"✅ Theme artefacts match {len(new_tokens)} tokens in ui_xml/*.xml")
     return 0
 
 

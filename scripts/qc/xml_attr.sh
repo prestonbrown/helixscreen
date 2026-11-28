@@ -19,7 +19,12 @@ if [ -x "build/bin/validate-xml-attributes" ]; then
     STAGED_XML_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.xml$' || true)
     if [ -n "$STAGED_XML_FILES" ]; then
       # shellcheck disable=SC2086
-      if ./build/bin/validate-xml-attributes --warn-only $STAGED_XML_FILES 2>/dev/null; then
+      # Each file as the commit will hold it, not as the working tree has it.
+      STAGED_XML_READ=()
+      for qc_f in $STAGED_XML_FILES; do
+        STAGED_XML_READ+=("$(qc_read_path "$qc_f")")
+      done
+      if ./build/bin/validate-xml-attributes --warn-only "${STAGED_XML_READ[@]}" 2>/dev/null; then
         echo "✅ XML attribute validation passed"
       else
         echo "⚠️  Unknown XML attributes found (warnings only for now)"
