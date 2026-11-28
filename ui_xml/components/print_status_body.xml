@@ -44,6 +44,15 @@
         <bind_style_if name="printer_stacked" cond="ps_arrangement eq 1 and ps_lane_tray ne 2 and ps_tune_h eq 0"/>
       </print_status_printer_tile>
     </lv_obj>
+    <!-- The printer tile's chips in one row under both tiles (ps_callout_mode 6,
+         RowBelow), offered in portrait at micro and tiny: PrintStatusTiles moves
+         the chips in, places them and sets its height to the tallest chip the
+         row budgets for. -->
+    <lv_obj name="ps_chip_row"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            hidden="true">
+      <bind_flag_if_not_eq subject="ps_callout_mode" flag="hidden" ref_value="6"/>
+    </lv_obj>
     <print_status_strip name="ps_strip"/>
     <print_status_lane_tray name="ps_lane_tray" width="100%" hidden="true">
       <bind_style_prop prop="height" subject="ps_lane_tray_h"/>

@@ -173,7 +173,8 @@ std::string other_tools_budget_text(const std::vector<OtherToolReading>& tools) 
 
 ChipContent heater_chip(bool present, int current_deci, int target_deci,
                         const ui::temperature::HeaterStatus& status, bool printing, bool show_power,
-                        std::string_view badge, int start_deci, bool reading_alone_shows) {
+                        std::string_view badge, int start_deci, bool reading_alone_shows,
+                        bool target_shows) {
     using ui::temperature::HeaterStatusState;
     ChipContent c;
     if (!present || (target_deci <= 0 && !reading_alone_shows &&
@@ -194,7 +195,7 @@ ChipContent heater_chip(bool present, int current_deci, int target_deci,
     }
     // The target shows only while the reading is off it; holding, the
     // reading alone says the heater is there.
-    text += heater_text(current_deci, heating || cooling ? target_deci : 0);
+    text += heater_text(current_deci, target_shows && (heating || cooling) ? target_deci : 0);
     if (show_power && !status.duty.empty())
         text += " · " + status.duty;
     c.text = std::move(text);
@@ -234,13 +235,13 @@ ChipContent fan_chip(CalloutKind kind, std::string_view label, bool present, int
     return c;
 }
 
-std::string heater_budget_text(std::string_view badge) {
+std::string heater_budget_text(std::string_view badge, bool target_shows) {
     std::string text(badge);
     if (!text.empty()) {
         text += ' ';
     }
     // The widest shape at the widest reading the home callout measures too.
-    return text + heater_text(9990, 9990);
+    return text + heater_text(9990, target_shows ? 9990 : 0);
 }
 
 ChipContent speed_flow_chip(int speed_pct, int flow_pct, const std::string& speed_text) {

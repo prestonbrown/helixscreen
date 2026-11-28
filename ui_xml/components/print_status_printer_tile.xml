@@ -7,7 +7,8 @@
      ps_printer_area's content box; everything else is bound here.
      ps_callout_mode: 0 ImageOnly, 1 Pinned (compact chips on the picture),
      2 Docked (untagged image, no lines or glows), 3 BothSides, 4 OneSide,
-     5 Staggered (compact chips at the side edges, over the picture's edge).
+     5 Staggered (compact chips at the side edges, over the picture's edge),
+     6 RowBelow (the chips leave for ps_chip_row under both tiles).
      A glow is strong while its chip's tone is Active (a heater climbing, a fan
      spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. The bed
      and chamber glow by how hot they are instead (heat_glow). -->

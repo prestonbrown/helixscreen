@@ -185,7 +185,8 @@ class PrintStatusTiles {
     void paint_heat_chip(PrintStatusChip chip, const ChipContent& c);
     /// The active tool's badge ("T1") on a multi-tool printer, empty otherwise.
     std::string tool_badge() const;
-    ChipContent heater(PrintStatusChip chip, bool show_power);
+    /// `target_shows` false: the reading alone, as the row below shows a heater.
+    ChipContent heater(PrintStatusChip chip, bool show_power, bool target_shows = true);
     int heat_start(PrintStatusChip chip, int current, int target);
     /// Every head but the printing one, read for the other-tools chip.
     std::vector<OtherToolReading> other_tool_readings();
@@ -256,6 +257,8 @@ class PrintStatusTiles {
         Image image;
         std::array<ChipContent, kPrintStatusChipCount> contents{};
         std::array<ChipContent, kPrintStatusChipCount> bare{};
+        /// The heaters as the row below shows them, their readings alone.
+        std::array<ChipContent, kPrintStatusChipCount> row{};
         int column_w = 0;
     };
     LaidOut laid_out_;

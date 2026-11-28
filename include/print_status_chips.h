@@ -50,10 +50,12 @@ struct ChipContent {
 /// `reading_alone_shows`: an off, cold heater still shows its reading, for a
 /// chamber whose temperature matters while its heater is idle or absent.
 /// Not present, or off and cold without `reading_alone_shows`: not shown.
+/// Without `target_shows` the text is the reading alone even while heating, and
+/// the heat-up bar is all that tells how far the target is (the row below).
 [[nodiscard]] ChipContent heater_chip(bool present, int current_deci, int target_deci,
                                       const ui::temperature::HeaterStatus& status, bool printing,
                                       bool show_power, std::string_view badge, int start_deci,
-                                      bool reading_alone_shows = false);
+                                      bool reading_alone_shows = false, bool target_shows = true);
 
 /// A head the other-tools chip lists: the tool that stands for it, the
 /// extruder it heats and its index into the heads it was found among.
@@ -111,8 +113,8 @@ struct OtherToolReading {
 /// The text a heater chip is measured at when the layout picks its mode: its
 /// widest shape ("999 / 999°") after `badge` ("T1"), whatever it shows now, so
 /// neither a reading's digits nor a heater crossing its tolerance edge moves
-/// the picture.
-[[nodiscard]] std::string heater_budget_text(std::string_view badge);
+/// the picture. Without `target_shows`, the widest reading alone.
+[[nodiscard]] std::string heater_budget_text(std::string_view badge, bool target_shows = true);
 
 /// A fan chip. `kind` picks the rules: a part fan (Fan) is Active while
 /// spinning; any fan at 0% is Dim and expendable; a HotendFan at its automatic

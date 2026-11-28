@@ -38,13 +38,16 @@ inline constexpr size_t kCalloutKindCount = 10;
 /// The `printer_callout_mode` subject ints; XML ref_values read these.
 /// Staggered: compact chips against the left and right area edges, beside the
 /// full-size picture and over its edge where the margin is narrower than a chip.
+/// RowBelow: full-size chips in one row under the area, in a strip of their
+/// own (CalloutLayoutInput::row), and the picture clean of chips.
 enum class CalloutMode {
     ImageOnly = 0,
     Pinned = 1,
     Docked = 2,
     BothSides = 3,
     OneSide = 4,
-    Staggered = 5
+    Staggered = 5,
+    RowBelow = 6
 };
 
 /// Modes whose chips draw compact: bare text, no icons but a heater's status glyph.
@@ -74,6 +77,11 @@ struct CalloutChipIn {
     /// the Staggered mode lays out; 0 keeps `w`.
     int w_compact = 0;
     int h_compact = 0; ///< `h` in compact form; 0 is the layout's compact_chip_h
+    /// Its width in the row below, where a heater shows its reading alone; 0 keeps
+    /// its unlabeled width.
+    int w_row = 0;
+    /// w_row without a heater's status glyph, the row's last resort; 0 keeps w_row.
+    int w_row_plain = 0;
 };
 
 struct CalloutChipOut {
@@ -88,6 +96,18 @@ struct CalloutChipOut {
 struct CalloutPoint {
     int x = 0;
     int y = 0;
+};
+
+/// A strip under the image area that can hold the chips in one row. It takes
+/// its height (its tallest budget chip plus `gap`) from the area, so the row is
+/// used only when the picture keeps its full-area size without that height.
+struct CalloutRowBelow {
+    int w = 0;   ///< the strip's width; 0 offers no strip
+    int gap = 0; ///< between the area and the strip
+    /// Pixels the showing strip takes from the area now, its height plus `gap`; 0 while
+    /// hidden. The row is judged against the area with these given back, so the
+    /// decision is the same whether the strip shows or not.
+    int taken = 0;
 };
 
 struct CalloutLayoutInput {
@@ -112,6 +132,8 @@ struct CalloutLayoutInput {
     std::vector<CalloutChipIn> active;
     /// Nozzle+fan combined, for pinned mode when both are active.
     std::optional<CalloutChipIn> toolhead;
+    /// Offered, the row below is tried before every other mode.
+    CalloutRowBelow row;
 };
 
 struct CalloutLayout {
@@ -123,6 +145,10 @@ struct CalloutLayout {
     std::vector<CalloutKind> dropped;
     /// Labeled chips are laid out at their w_unlabeled, so they show no label.
     bool unlabeled = false;
+    /// RowBelow chips are laid out at their w_row_plain, so heaters show no status glyph.
+    bool row_plain = false;
+    /// RowBelow: the strip's height, its tallest budget chip, whichever chips show.
+    int row_h = 0;
 };
 
 /// Where a tagged image puts `k`'s chip: its part's point, the nozzle for the
@@ -915,6 +941,138 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
     return true;
 }
 
+/// The row-below order: the heaters, the fans, then the rest.
+inline int row_below_rank(CalloutKind k) {
+    switch (k) {
+    case CalloutKind::Nozzle:
+    case CalloutKind::Toolhead:
+        return 0;
+    case CalloutKind::Bed:
+        return 1;
+    case CalloutKind::Chamber:
+        return 2;
+    case CalloutKind::OtherTools:
+        return 3;
+    case CalloutKind::Fan:
+        return 4;
+    case CalloutKind::HotendFan:
+        return 5;
+    case CalloutKind::AuxFan:
+        return 6;
+    case CalloutKind::SpeedFlow:
+        return 7;
+    case CalloutKind::Light:
+        break;
+    }
+    return 8;
+}
+
+/// A chip's width in the row below: its icon names it there, so it carries no label.
+inline int row_w_of(const CalloutChipIn& c, bool plain) {
+    if (plain && c.w_row_plain > 0)
+        return c.w_row_plain;
+    if (c.w_row > 0)
+        return c.w_row;
+    return c.w_unlabeled > 0 ? c.w_unlabeled : c.w;
+}
+
+/// The width `chips` take in the row below with `gap` between them.
+inline int row_width(const std::vector<CalloutChipIn>& chips, int gap, bool plain) {
+    int w = chips.empty() ? 0 : gap * int(chips.size() - 1);
+    for (const auto& c : chips)
+        w += row_w_of(c, plain);
+    return w;
+}
+
+/// Chips in one row under the area, each named by its icon. The budget decides
+/// whether the row holds them, whole or without its expected values, least
+/// needed first, and only then with the heaters' status glyphs left off. The row takes its tallest
+/// chip plus `row.gap` from the area, and is used only where the picture keeps the size the whole
+/// area gives it. Chips sit in row_below_rank() order, spaced evenly, in the strip's own
+/// coordinates.
+inline bool try_row_below(const CalloutLayoutInput& in, CalloutLayout& out) {
+    if (in.row.w <= 0 || in.budget.empty())
+        return false;
+    std::vector<CalloutKind> by_rank;
+    for (const auto& c : in.budget)
+        if (c.expendable)
+            by_rank.push_back(c.kind);
+    sort_small(by_rank.begin(), by_rank.end(),
+               [](CalloutKind a, CalloutKind b) { return dock_rank(a) < dock_rank(b); });
+    const auto shed = [&](std::vector<CalloutChipIn> v, size_t n) {
+        v.erase(std::remove_if(v.begin(), v.end(),
+                               [&](const CalloutChipIn& c) {
+                                   return c.expendable &&
+                                          std::find(by_rank.begin(), by_rank.begin() + long(n),
+                                                    c.kind) != by_rank.begin() + long(n);
+                               }),
+                v.end());
+        return v;
+    };
+    for (int attempt = 0; attempt < 2 * int(by_rank.size() + 1); ++attempt) {
+        const bool plain = attempt > int(by_rank.size());
+        const size_t n = size_t(attempt) % (by_rank.size() + 1);
+        const std::vector<CalloutChipIn> budget = shed(in.budget, n);
+        if (row_width(budget, in.gap, plain) > in.row.w)
+            continue;
+        int row_h = 0;
+        for (const auto& c : budget)
+            row_h = std::max(row_h, chip_h_of(in, c));
+        const int take = row_h + in.row.gap;
+        // The area as tall as it stands with the row hidden.
+        const int full_h = in.area_h + in.row.taken;
+        const CalloutRect full = fit_image(in.area_w, full_h, in.image_w, in.image_h);
+        const CalloutRect kept = fit_image(in.area_w, full_h - take, in.image_w, in.image_h);
+        // A taller chip shed later may leave a shorter row that fits.
+        if (full.w <= 0 || kept.w != full.w || kept.h != full.h)
+            continue;
+
+        out = {};
+        out.mode = CalloutMode::RowBelow;
+        out.image = fit_image(in.area_w, in.area_h, in.image_w, in.image_h);
+        out.unlabeled = true;
+        out.row_plain = plain;
+        out.row_h = row_h;
+        // A chip taller than the budget's tallest has no room in the strip.
+        std::vector<CalloutChipIn> active = shed(in.active, n);
+        active.erase(
+            std::remove_if(active.begin(), active.end(),
+                           [&](const CalloutChipIn& c) { return chip_h_of(in, c) > row_h; }),
+            active.end());
+        for (const auto& c : in.active)
+            if (std::none_of(active.begin(), active.end(),
+                             [&](const CalloutChipIn& a) { return a.kind == c.kind; }))
+                out.dropped.push_back(c.kind);
+        // A live reading wider than its budget gives up the expected values first.
+        while (row_width(active, in.gap, plain) > in.row.w) {
+            auto victim = active.end();
+            for (auto it = active.begin(); it != active.end(); ++it)
+                if (it->expendable &&
+                    (victim == active.end() || dock_rank(it->kind) < dock_rank(victim->kind)))
+                    victim = it;
+            if (victim == active.end())
+                break;
+            out.dropped.push_back(victim->kind);
+            active.erase(victim);
+        }
+        sort_small(active.begin(), active.end(),
+                   [](const CalloutChipIn& a, const CalloutChipIn& b) {
+                       return row_below_rank(a.kind) < row_below_rank(b.kind);
+                   });
+        const int space =
+            std::max(0, (in.row.w - row_width(active, 0, plain)) / int(active.size() + 1));
+        int x = space;
+        for (const auto& c : active) {
+            const int w = row_w_of(c, plain);
+            const int h = chip_h_of(in, c);
+            out.chips.push_back({c.kind, {x, (row_h - h) / 2, w, h}});
+            x += w + space;
+        }
+        return true;
+    }
+    return false;
+}
+
 } // namespace callout_detail
 
 [[nodiscard]] inline CalloutLayout compute_callout_layout(const CalloutLayoutInput& in) {
@@ -925,6 +1083,8 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
         out.mode = CalloutMode::ImageOnly;
         return out;
     }
+    if (try_row_below(in, out))
+        return out;
 
     std::vector<CalloutChipIn> chips = in.active;
     if (in.tagged) {
