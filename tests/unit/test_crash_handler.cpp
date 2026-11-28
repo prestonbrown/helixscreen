@@ -32,7 +32,9 @@
 #include <fstream>
 #include <string>
 #include <sys/mman.h>
+#ifdef __linux__
 #include <sys/prctl.h>
+#endif
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -816,6 +818,8 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record writes parseab
     REQUIRE(parsed["exception"] == "std::runtime_error: test");
 }
 
+// The record names its thread only where the handler can read the name (prctl).
+#ifdef __linux__
 TEST_CASE_METHOD(CrashTestFixture,
                  "Crash: an exception record names the throwing thread and its frames",
                  "[telemetry][crash]") {
@@ -832,14 +836,13 @@ TEST_CASE_METHOD(CrashTestFixture,
     CHECK(parsed["exception"] == "Operation not permitted");
     CHECK(parsed["thread"] == "jq-worker");
     CHECK(parsed.contains("load_base"));
-#ifdef __linux__
     CHECK(parsed.contains("memory_map"));
-#endif
 #if defined(__linux__) && defined(__GLIBC__)
     REQUIRE(parsed.contains("backtrace"));
     CHECK_FALSE(parsed["backtrace"].empty());
 #endif
 }
+#endif
 
 TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record handles null what",
                  "[telemetry][crash]") {
