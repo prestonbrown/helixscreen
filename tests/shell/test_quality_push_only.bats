@@ -19,8 +19,8 @@ with_driver() {
   bash -c '
     STAGED_ONLY="$1"
     QC_STAGED_ALL="src/foo.cpp"
-    eval "$(grep "^QC_PUSH_ONLY=" scripts/quality-checks.sh)"
-    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_DEFERRED=/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+    eval "$(grep -E "^QC_(PUSH_ONLY|WHOLE_TREE)=" scripts/quality-checks.sh)"
+    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_DEFERRED=/p; /^QC_LEFT_WHOLE=/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
     eval "$2"
   ' _ "$1" "$2"
 }
@@ -49,15 +49,22 @@ with_driver() {
   contains "qc_growth_ratchets" "$output"
 }
 
-# These are slow too, but a commit that fails them does not build or load.
-@test "the gates that keep a commit buildable still run at commit" {
-  run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"'
+# Formatting and the staged compile judge each staged file on its own, so a
+# commit that fails them would not build still meets them at commit. The XML
+# linter, its tool build and the design-token checks need the whole tree, and
+# are the full sweep's.
+@test "the gate that keeps a commit buildable still runs at commit; the whole-tree ones wait" {
+  run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"; echo "left:$QC_LEFT_WHOLE"
+'
   [ "$status" -eq 0 ]
   contains "RAN qc_phase2" "$output"
-  contains "RAN qc_xml_tools" "$output"
-  contains "RAN qc_xml_linter" "$output"
-  contains "RAN qc_design_pixels" "$output"
+  lacks "RAN qc_xml_tools" "$output"
+  lacks "RAN qc_xml_linter" "$output"
+  lacks "RAN qc_design_pixels" "$output"
   contains "deferred:[]" "$output"
+  contains " qc_xml_tools" "$output"
+  contains " qc_xml_linter" "$output"
+  contains " qc_design_pixels" "$output"
 }
 
 @test "pre-push runs no doc-anchor scan" {
@@ -459,9 +466,14 @@ SH
   contains "summary: 2 compiled, 0 skipped, 1 failed" "$output"
 }
 
-@test "the design ratchets run at commit: their warning belongs on the commit that adds the site" {
-  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"'
+# A design ratchet compares a branch with its base, so it needs more than the
+# staged files: the full sweep names each new site, where a landing and CI
+# read it.
+@test "the design ratchets wait for the full sweep, like every whole-tree gate" {
+  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"; echo "left:$QC_LEFT_WHOLE"
+'
   [ "$status" -eq 0 ]
-  contains "RAN" "$output"
+  lacks "RAN" "$output"
   contains "deferred:[]" "$output"
+  contains "left: qc_design_ratchets" "$output"
 }

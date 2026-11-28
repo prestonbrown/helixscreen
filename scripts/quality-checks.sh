@@ -239,10 +239,23 @@ QC_ALL="qc_phase1 qc_xml_tools qc_xml_attr qc_dup_names qc_xml_linter qc_theme_a
 #
 # Only a lint belongs here: a failure it finds is a policy breach, not a commit
 # that fails to build or load. The slow gates a commit keeps are that kind:
-# qc_phase2 (formatting, the staged compile), qc_xml_tools and qc_xml_linter
-# (the XML the app loads at runtime) and qc_design_pixels (layout-variant
-# parity, without which a breakpoint loses the widgets its code looks up).
+# qc_phase2 (formatting, the staged compile).
 QC_PUSH_ONLY="qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_app_srcs qc_translation_fmt qc_test_tautology qc_test_widget_registry qc_hold_ends_press qc_growth_ratchets qc_code_lint qc_layering"
+
+# What a gate needs to decide, one tier per gate (qc_check_tiers refuses a gate
+# without one). The commit hook (--staged-only) runs the per-file tier only.
+#
+# QC_PER_FILE: a gate that judges each staged file on its own, and reads that
+# file as the commit will hold it (QC_STAGED_DIR holds the staged content). A
+# commit is as long as these.
+#
+# QC_WHOLE_TREE: a gate that needs other files to decide, whether it walks a
+# tree, compares two generated lists, reads a ratchet's baseline or builds a
+# tool. It is the full sweep's: a push to main, release/* or a tag, land-gate
+# and CI run every gate over the whole tree. HELIX_QC_ALL_AT_COMMIT=1 runs them
+# at commit too.
+QC_PER_FILE="qc_phase1 qc_phase2 qc_xml_attr qc_dup_names qc_xml_rules qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only qc_shellcheck qc_bats_inert"
+QC_WHOLE_TREE="qc_xml_tools qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_double_binds qc_design_pixels qc_esp32_app_srcs qc_esp32_stub_coverage qc_esp32_xml_bindings qc_icon_font qc_mdi_codepoints qc_filament_ops_neutral qc_hold_ends_press qc_decl_ui qc_orphan_callbacks qc_design_ratchets qc_layering qc_design_tokens qc_test_mirrors qc_growth_ratchets qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_files qc_translation_packs_fresh qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_code_lint qc_test_lint qc_ui_lint"
 
 # Gates whose answer depends only on the files their QC_TRIGGER matches, judged
 # file by file or from those files alone. make land-gate names its change in
@@ -262,12 +275,13 @@ for fn in $QC_ALL; do
   case " $QC_SERIAL " in *" $fn "*) ;; *) QC_PARALLEL="$QC_PARALLEL $fn" ;; esac
 done
 
-# Path gating - pre-commit only.
+# Path gating - pre-commit only, and inside the per-file tier.
 #
 # A one-file commit paid for every repo-wide gate: the declarative-UI scan alone
-# is ~9s and greps all of src/ even when you touched a .md. In --staged-only we
-# skip a check when nothing it inspects was staged. The full run (pre-push, CI)
-# gates nothing, so this can only defer work to the push, never drop it.
+# is ~9s and greps all of src/ even when you touched a .md. In --staged-only a
+# whole-tree gate is left to the full sweep (QC_WHOLE_TREE above), and a per-file
+# gate is skipped when nothing it inspects was staged. The full run gates
+# nothing, so this can only defer work to the sweep, never drop it.
 #
 # A gate that sets no QC_TRIGGER_<gate> always runs, unless it is push-only.
 qc_trigger_re() {
@@ -275,9 +289,29 @@ qc_trigger_re() {
   echo "${!var:-}"
 }
 
-QC_SKIPPED=""
-QC_DEFERRED=""
-QC_LEFT=""
+# A whole-tree gate a commit left to the full sweep.
+QC_LEFT_WHOLE=""
+
+# Every gate has exactly one tier. A gate added to QC_ALL without one would run
+# at a push and never at a commit, or the reverse, by accident: the sweep stops
+# here instead.
+qc_check_tiers() {
+  local fn n bad=0
+  for fn in $QC_PER_FILE $QC_WHOLE_TREE; do
+    case " $QC_ALL " in
+      *" $fn "*) ;;
+      *) echo "❌ $fn has a tier and is not in QC_ALL"; bad=1 ;;
+    esac
+  done
+  for fn in $QC_ALL; do
+    n=$(printf '%s\n' $QC_PER_FILE $QC_WHOLE_TREE | grep -cxF -- "$fn")
+    if [ "$n" -ne 1 ]; then
+      echo "❌ $fn is named $n times in QC_PER_FILE and QC_WHOLE_TREE; a gate has exactly one tier"
+      bad=1
+    fi
+  done
+  return $bad
+}
 qc_wanted() {
   local re
   # HELIX_QC_CHANGED_FROM names a file of changed paths (land-gate's
@@ -314,6 +348,12 @@ qc_wanted() {
       fi
       ;;
   esac
+  # A whole-tree gate is the full sweep's; a commit runs the per-file tier.
+  if [ "${HELIX_QC_ALL_AT_COMMIT:-0}" != 1 ]; then
+    case " $QC_WHOLE_TREE " in
+      *" $1 "*) QC_LEFT_WHOLE="$QC_LEFT_WHOLE $1"; return 1 ;;
+    esac
+  fi
   re="$(qc_trigger_re "$1")"
   [ -n "$re" ] || return 0
   if printf '%s\n' "$QC_STAGED_ALL" | grep -qE "$re"; then
@@ -322,6 +362,11 @@ qc_wanted() {
   QC_SKIPPED="$QC_SKIPPED $1"
   return 1
 }
+
+if ! qc_check_tiers; then
+  echo "❌ Quality checks failed! A gate's tier is wrong in scripts/quality-checks.sh (QC_PER_FILE, QC_WHOLE_TREE)"
+  exit 1
+fi
 
 for fn in $QC_SERIAL; do
   if qc_wanted "$fn"; then qc_run_buffered "$fn"; fi
@@ -359,10 +404,15 @@ if [ -n "$QC_LEFT" ]; then
   echo ""
   echo "⏩ Left to make land-gate and CI (a work-branch push):$QC_LEFT"
 fi
+if [ -n "$QC_LEFT_WHOLE" ]; then
+  echo ""
+  echo "⏭️  Whole-tree checks, left to the full sweep (a push to main, release/* or a tag, land-gate, CI):$QC_LEFT_WHOLE"
+  echo "   HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too."
+fi
 if [ -n "$QC_SKIPPED" ]; then
   echo ""
   echo "⏭️  Skipped (nothing staged that they inspect):$QC_SKIPPED"
-  echo "   The pre-push hook runs all of them ungated."
+  echo "   The full sweep runs all of them ungated."
 fi
 # The design-ratchet blocks go last, beside the verdict, where a reader who skims
 # the gate list still meets them.
