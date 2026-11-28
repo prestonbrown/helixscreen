@@ -69,7 +69,6 @@ WizardPrinterIdentifyStep* get_wizard_printer_identify_step() {
 // ============================================================================
 
 WizardPrinterIdentifyStep::WizardPrinterIdentifyStep() {
-    // Zero-initialize buffers
     std::memset(printer_name_buffer_, 0, sizeof(printer_name_buffer_));
     std::memset(printer_detection_status_buffer_, 0, sizeof(printer_detection_status_buffer_));
 
@@ -93,7 +92,6 @@ WizardPrinterIdentifyStep::~WizardPrinterIdentifyStep() {
 // ============================================================================
 
 int WizardPrinterIdentifyStep::find_printer_type_index(const std::string& printer_name) {
-    // Use dynamic list from PrinterDetector (data-driven from database)
     // NOTE: This static method uses the unfiltered list. For kinematics-filtered
     // lookups, call PrinterDetector::find_list_index(name, kinematics) directly.
     return PrinterDetector::find_list_index(printer_name);
@@ -116,7 +114,6 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics,
                 "No printer connection available"};
     }
 
-    // Use shared auto_detect() which handles building PrinterHardwareData
     PrinterDetectionResult result = PrinterDetector::auto_detect(api->hardware());
     const std::string settled = PrinterDetector::saved_type_contender(saved_type, result);
     if (!settled.empty()) {
@@ -129,7 +126,6 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics,
         return {PrinterDetector::get_unknown_list_index(kinematics), 0, result.type_name};
     }
 
-    // Map detected type_name to list index (filtered by kinematics)
     const int unknown_index = PrinterDetector::get_unknown_list_index(kinematics);
     PrinterDetectionHint hint{PrinterDetector::find_list_index(result.type_name, kinematics),
                               result.confidence, result.type_name};
@@ -176,7 +172,6 @@ void WizardPrinterIdentifyStep::forget_subjects() {
 }
 
 void WizardPrinterIdentifyStep::init_subjects() {
-    // Check if we're connected to a DIFFERENT printer than last time
     std::string current_url;
     IMoonrakerClient* client = get_moonraker_client();
     if (client) {
@@ -228,7 +223,6 @@ void WizardPrinterIdentifyStep::init_subjects() {
         }
     }
 
-    // Load existing values from config if available
     Config* config = Config::get_instance();
     std::string default_name = "";
     std::string saved_type = "";
@@ -238,7 +232,6 @@ void WizardPrinterIdentifyStep::init_subjects() {
         default_name = config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "");
         saved_type = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
 
-        // Dynamic lookup: find index by type name (using filtered list)
         if (!saved_type.empty()) {
             default_type = PrinterDetector::find_list_index(saved_type, detected_kinematics_);
             spdlog::debug("[{}] Loaded from config: name='{}', type='{}', resolved index={}",
@@ -251,7 +244,6 @@ void WizardPrinterIdentifyStep::init_subjects() {
         spdlog::debug("[{}] No existing config, using defaults", get_name());
     }
 
-    // Auto-fill printer name from Moonraker hostname if not saved
     if (default_name.empty()) {
         IMoonrakerAPI* api = get_moonraker_api();
         if (api) {
@@ -270,7 +262,6 @@ void WizardPrinterIdentifyStep::init_subjects() {
         }
     }
 
-    // Initialize with values from config or defaults
     strncpy(printer_name_buffer_, default_name.c_str(), sizeof(printer_name_buffer_) - 1);
     printer_name_buffer_[sizeof(printer_name_buffer_) - 1] = '\0';
 
@@ -311,7 +302,6 @@ void WizardPrinterIdentifyStep::init_subjects() {
                                         "wizard_printer_vendor_title");
     UI_SUBJECT_INIT_AND_REGISTER_INT(match_count_, 1, "wizard_printer_match_count");
 
-    // Initialize detection status message
     const char* status_msg;
     if (hint.ambiguous) {
         status_msg = lv_tr("Several printers match - choose yours");
@@ -382,7 +372,6 @@ void WizardPrinterIdentifyStep::handle_printer_name_changed(lv_event_t* event) {
     lv_subject_set_string(&printer_name_, text);
     updating_from_subject_ = false;
 
-    // Validate
     const size_t max_length = sizeof(printer_name_buffer_) - 1;
     bool is_empty = (trimmed.length() == 0);
     bool is_too_long = (trimmed.length() > max_length);
@@ -432,7 +421,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Create from XML
     screen_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_printer_identify", nullptr));
     crash_handler::breadcrumb::note("wpi", "xml_created", screen_root_ ? 1 : 0);
@@ -442,7 +430,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find the printer type list container from XML
     lv_obj_t* xml_list = helix::ui::find_required(screen_root_, "printer_type_list", get_name());
     if (xml_list) {
         if (list_cache_container_ && lv_obj_get_child_count(list_cache_container_) > 0) {
@@ -456,7 +443,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
             spdlog::debug("[{}] Restored cached printer type list ({} items)", get_name(),
                           lv_obj_get_child_count(printer_type_list_));
         } else {
-            // First visit — build the list from scratch
             printer_type_list_ = xml_list;
             populate_printer_type_list();
             spdlog::debug("[{}] Printer type list populated with {} items", get_name(),
@@ -499,7 +485,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
         helix::ui::find_required(screen_root_, "printer_preview_image", get_name());
     if (printer_preview_image_) {
         int selected = lv_subject_get_int(&printer_type_selected_);
-        // Resolve name from filtered list, then look up image by name
         std::string name = PrinterDetector::get_list_name_at(selected, detected_kinematics_);
         std::string image_path = printer_images::get_image_path_for_name(name);
         lv_image_set_src(printer_preview_image_, image_path.c_str());
@@ -527,10 +512,8 @@ void WizardPrinterIdentifyStep::cleanup() {
     spdlog::debug("[{}] Cleaning up printer identification screen", get_name());
     crash_handler::breadcrumb::note("wpi", "cleanup_enter", 0);
 
-    // Save current subject values to config
     Config* config = Config::get_instance();
     try {
-        // Get current name from SUBJECT using lv_subject_get_string() for string subjects
         const char* subject_value = lv_subject_get_string(&printer_name_);
 
         spdlog::debug("[{}] Subject value: '{}'", get_name(),
@@ -538,30 +521,26 @@ void WizardPrinterIdentifyStep::cleanup() {
 
         std::string current_name(subject_value ? subject_value : "");
 
-        // Trim whitespace
         current_name.erase(0, current_name.find_first_not_of(" \t\n\r\f\v"));
         current_name.erase(current_name.find_last_not_of(" \t\n\r\f\v") + 1);
 
         spdlog::debug("[{}] After trim: '{}' (length={})", get_name(), current_name,
                       current_name.length());
 
-        // Save printer name if valid
         if (current_name.length() > 0) {
             config->set<std::string>(config->df() + helix::wizard::PRINTER_NAME, current_name);
             spdlog::debug("[{}] Saving printer name to config: '{}'", get_name(), current_name);
-            // Sync name to Mainsail/Fluidd DB
             helix::PrinterNameSync::write_back(get_moonraker_api(), current_name);
         } else {
             spdlog::debug("[{}] Printer name empty, not saving", get_name());
         }
 
-        // Get current type index and convert to type name (via dynamic database lookup)
         int type_index = lv_subject_get_int(&printer_type_selected_);
         std::string type_name = PrinterDetector::get_list_name_at(type_index, detected_kinematics_);
 
         // Save the printer type and merge its preset. Shared with the Printer
         // Manager's model row via PrinterDetector::apply_type_choice() - both
-        // are "the user picked this model", and detection now declines to guess
+        // are "the user picked this model", and detection declines to guess
         // whenever it is unsure, so these hand-pick paths carry real traffic.
         IMoonrakerAPI* api = get_moonraker_api();
         if (type_index == kNoSelection) {
@@ -578,8 +557,8 @@ void WizardPrinterIdentifyStep::cleanup() {
                 // marker, and Config::has_preset() is what collapses this step
                 // plus every hardware picker and the summary. cleanup() runs on
                 // Back as well as Next, so an interrupted run (crash, power cut,
-                // user quits) previously came back with all of them gone and no
-                // in-app way to revisit a mis-detected pick. Mark it provisional;
+                // user quits) would otherwise come back with all of them gone and
+                // no in-app way to revisit a mis-detected pick. Mark it provisional;
                 // it becomes authoritative only when wizard_completed flips.
                 config->set<bool>(config->df() + helix::kWizardPresetProvisional, true);
                 // Keep the current run collapsing the now-redundant steps.
@@ -593,14 +572,13 @@ void WizardPrinterIdentifyStep::cleanup() {
 
         // Display/backlight hardware settings are the responsibility of the
         // printer preset (assets/config/presets/*.json), not the identify
-        // wizard. Previously this block force-wrote AD5X/CC1-specific display
-        // overrides on every confirmation, which contradicted the ad5x preset
-        // after #431 and caused user-visible sleep bugs — see
+        // wizard: an override written here contradicts the preset (#431) and
+        // shows up as random solid colors during sleep, see
         // docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md "Known Issue: Random
-        // solid colors during sleep". Config migration v14→v15 cleans up stale
-        // values for users who ran the pre-fix wizard.
+        // docs/devel/printers/FLASHFORGE_AD5X_SUPPORT.md "Known Issue: Random
+        // solid colors during sleep". Config migration v14 to v15 removes any
+        // stale values.
 
-        // Persist config changes
         if (config->save()) {
             spdlog::debug("[{}] Saved printer identification settings", get_name());
         } else {
@@ -617,7 +595,6 @@ void WizardPrinterIdentifyStep::cleanup() {
     // framework deletes the step's widget tree. (issue #231)
     if (printer_type_list_ && lv_obj_get_child_count(printer_type_list_) > 0) {
         if (!list_cache_container_) {
-            // Create a persistent off-screen container (parented to active screen's layer)
             list_cache_container_ = lv_obj_create(lv_layer_sys());
             lv_obj_set_hidden(list_cache_container_, true);
             lv_obj_set_size(list_cache_container_, 0, 0);
@@ -680,7 +657,6 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
         return;
     }
 
-    // Clear any existing children
     lv_obj_clean(printer_type_list_);
 
     // Mirror the detector's list as selector entries (names + manufacturers);
@@ -866,12 +842,10 @@ void WizardPrinterIdentifyStep::on_printer_type_item_clicked(lv_event_t* e) {
     if (index >= 0 && index < static_cast<int>(names.size())) {
         spdlog::debug("[{}] Type selected: index {} ({})", self->get_name(), index, names[index]);
 
-        // Update subject
         lv_subject_set_int(&self->printer_type_selected_, index);
 
         self->update_validation();
 
-        // Update printer preview image (resolve name from filtered list)
         if (self->printer_preview_image_) {
             std::string image_path = printer_images::get_image_path_for_name(names[index]);
             lv_image_set_src(self->printer_preview_image_, image_path.c_str());

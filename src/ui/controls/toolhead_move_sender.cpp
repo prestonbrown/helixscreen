@@ -18,7 +18,6 @@ namespace helix {
 std::string clean_gcode_error(const std::string& msg) {
     std::string cleaned = MoonrakerError::friendly_error_line(msg);
 
-    // Provide friendly messages for common error patterns
     if (cleaned.find("Must home axis") != std::string::npos ||
         cleaned.find("must home") != std::string::npos) {
         return lv_tr("Must home axes first");

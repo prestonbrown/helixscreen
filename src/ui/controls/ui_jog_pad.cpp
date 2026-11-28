@@ -240,7 +240,7 @@ static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_p
 
 // Custom draw event: Draw two-zone circular jog pad (Bambu Lab style)
 //
-// LVGL ARC DRAWING SYSTEM - THE TRUTH (after much painful debugging)
+// LVGL ARC DRAWING SYSTEM
 //
 // CRITICAL: LVGL arcs are NOT strokes - they are RINGS with thickness measured INWARD
 //
@@ -249,7 +249,7 @@ static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_p
 //   - `width` = THICKNESS measured INWARD from outer edge
 //   - Inner edge = radius - width
 //
-// WRONG MENTAL MODEL (what we initially thought):
+// WRONG MENTAL MODEL:
 //   - radius = centerline, width = stroke that extends ±width/2
 //   - This is INCORRECT and will give wrong results
 //
@@ -286,7 +286,6 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     if (!state)
         return;
 
-    // Get container dimensions and center point
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     int32_t width = lv_area_get_width(&obj_coords);
@@ -295,7 +294,6 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     int32_t center_y = obj_coords.y1 + height / 2;
     int32_t radius = width / 2;
 
-    // Zone boundary: Inner circle at kInnerZoneBoundaryRatio of total radius
     jog_pad_recompute_zones(state, radius);
     int32_t inner_boundary = state->inner_boundary_px;
 
@@ -350,10 +348,8 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     line_dsc.p2.y = center_y + radius * 0.707f;
     lv_draw_line(layer, &line_dsc);
 
-    // Draw center home button area
     int32_t home_radius = state->home_radius_px;
 
-    // Draw filled background circle for home area
     lv_draw_arc_dsc_t home_bg_dsc;
     lv_draw_arc_dsc_init(&home_bg_dsc);
     home_bg_dsc.color = state->jog_color_home_bg;
@@ -379,7 +375,6 @@ static void jog_pad_draw_cb(lv_event_t* e) {
         home_ring_dsc.end_angle = 360;
         lv_draw_arc(layer, &home_ring_dsc);
 
-        // Draw center home icon (scaled to jog pad size)
         lv_draw_label_dsc_t home_label_dsc;
         lv_draw_label_dsc_init(&home_label_dsc);
         home_label_dsc.color =
@@ -417,7 +412,6 @@ static void jog_pad_draw_cb(lv_event_t* e) {
         }
     }
 
-    // Draw distance labels showing movement amounts for each ring (scaled fonts)
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
     // Name the object on the descriptor, as lv_obj_init_draw_label_dsc() does
@@ -451,7 +445,6 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     label_area.y2 = label_area.y1 + dist_label_h;
     lv_draw_label(layer, &label_dsc, &label_area);
 
-    // Outer ring distance label
     label_dsc.text = outer_label;
     label_dsc.color = state->jog_color_distance_labels;
     int32_t outer_label_radius = (int32_t)((radius + inner_boundary) * 0.5f);
@@ -505,10 +498,8 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     label_area.y2 = label_area.y1 + axis_label_h;
     lv_draw_label(layer, &label_dsc, &label_area);
 
-    // Draw press highlight overlay if a zone is pressed
     if (state->is_pressed) {
         if (state->pressed_is_home) {
-            // Highlight home button with filled circle
             lv_draw_arc_dsc_t highlight_dsc;
             lv_draw_arc_dsc_init(&highlight_dsc);
             highlight_dsc.color = state->jog_color_highlight;
@@ -722,7 +713,6 @@ static void jog_pad_click_cb(lv_event_t* e) {
     if (!zone.on_pad)
         return;
 
-    // Home button: center at kHomeZoneRatio
     if (zone.home) {
         if (state->home_callback) {
             state->home_callback(state->home_user_data);
@@ -779,14 +769,12 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     if (!obj)
         return nullptr;
 
-    // Allocate state using RAII helper
     auto state_ptr = lvgl_make_unique<jog_pad_state_t>();
     if (!state_ptr) {
         helix::ui::safe_delete(obj);
         return nullptr;
     }
 
-    // Get raw pointer for initialization
     jog_pad_state_t* state = state_ptr.get();
 
     state->current_mode = JogMode::Coarse;
@@ -799,7 +787,6 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     // Transfer ownership to LVGL widget
     lv_obj_set_user_data(obj, state_ptr.release());
 
-    // Configure object appearance
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);

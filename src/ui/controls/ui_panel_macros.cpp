@@ -228,8 +228,6 @@ void MacrosPanel::on_deactivating(DeactivateReason reason) {
     if (edit_mode_ && reason != DeactivateReason::Suspended) {
         exit_edit_mode(false);
     }
-
-    // Call base class (invalidates lifetime_)
 }
 
 void MacrosPanel::on_ui_destroyed() {
@@ -549,7 +547,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
 
     // Saved defaults: ask off runs (or confirms a run) with the saved values;
     // ask on prefills the param modal with them. Either way a missing record
-    // behaves exactly as before.
+    // behaves as though none were saved.
     const helix::MacroParamDefaultRecord defaults =
         helix::MacroParamDefaults::instance().get(macro_name);
     req.prompt_for_params = defaults.ask_for_params;

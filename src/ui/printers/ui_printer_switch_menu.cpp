@@ -23,7 +23,6 @@
 
 namespace helix::ui {
 
-// Static member initialization
 bool PrinterSwitchMenu::s_callbacks_registered_ = false;
 
 // ============================================================================
@@ -73,12 +72,10 @@ void PrinterSwitchMenu::populate_printer_list() {
         return;
     }
 
-    // Cap list height at 2/3 screen height
     lv_obj_t* screen = lv_obj_get_screen(menu());
     int screen_h = lv_obj_get_height(screen);
     lv_obj_set_style_max_height(printer_list, screen_h * 2 / 3, 0);
 
-    // Get check icon codepoint from our icon system
     const char* check_codepoint = helix::ui::icon::lookup_codepoint("check");
 
     std::vector<std::pair<lv_obj_t*, std::string>> rows;
@@ -99,7 +96,6 @@ void PrinterSwitchMenu::populate_printer_list() {
         helix::ui::set_row_label_text(row, "printer_name", name.c_str());
         rows.emplace_back(row, std::move(name));
 
-        // Store printer ID for click handler
         lv_obj_set_name(row, id.c_str());
 
         lv_obj_add_event_cb(row, on_printer_row_cb, LV_EVENT_CLICKED, nullptr);

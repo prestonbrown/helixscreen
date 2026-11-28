@@ -173,7 +173,6 @@ lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
 
     fans_container_ = helix::ui::find_required(overlay_root_, "fans_container", get_name());
 
-    // Populate fans from current PrinterState
     populate_fans();
 
     return overlay_root_;
@@ -215,22 +214,18 @@ void FanControlOverlay::on_activate() {
         DisplaySettingsManager::instance().subject_animations_enabled(), this,
         [](FanControlOverlay* self, int /* enabled */) {
             if (self->is_visible()) {
-                // Refresh controllable fan dial animations
                 for (auto& afd : self->animated_fan_dials_) {
                     if (afd.dial) {
                         afd.dial->refresh_animation();
                     }
                 }
-                // Refresh auto fan card animations
                 self->refresh_all_auto_fan_animations();
             }
         },
         DisplaySettingsManager::instance().get_subjects_lifetime());
 
-    // Subscribe to per-fan speed subjects for reactive updates
     subscribe_to_fan_speeds();
 
-    // Refresh fan speeds from current state
     update_fan_speeds();
 
     spdlog::trace("[{}] Activated", get_name());
@@ -379,7 +374,6 @@ void FanControlOverlay::populate_fans() {
                                                  fan.speed_percent, false, rename_index);
             afd.dial->set_rpm(fan.rpm);
 
-            // Set callback for user-initiated speed changes (dial interaction)
             if (role) {
                 afd.dial->set_hold_until_release(true);
                 afd.dial->set_on_speed_changed(
@@ -445,7 +439,6 @@ void FanControlOverlay::populate_fans() {
             speed->manager.register_subject(&speed->rpm);
             set_auto_fan_speed_text(*speed, fan.speed_percent, fan.rpm);
 
-            // Long-press to rename
             const std::string rename_index = add_rename_target(fan.object_name, fan.display_name);
             const char* attrs[] = {"fan_name",    fan.display_name.c_str(), "speed_percent",
                                    speed_num_str, "speed_subject",          speed->name.c_str(),
@@ -466,14 +459,12 @@ void FanControlOverlay::populate_fans() {
                     lv_obj_bind_flag_if_eq(rpm_label, &speed->rpm, LV_OBJ_FLAG_HIDDEN, 0);
                 }
 
-                // Find fan icon for spin animation
                 lv_obj_t* fan_icon = helix::ui::find_required(card, "fan_icon", get_name());
                 if (fan_icon) {
                     lv_obj_set_style_transform_pivot_x(fan_icon, LV_PCT(50), 0);
                     lv_obj_set_style_transform_pivot_y(fan_icon, LV_PCT(50), 0);
                 }
 
-                // Attach auto-resize for dynamic arc scaling
                 helix::ui::fan_arc_attach_auto_resize(card);
 
                 AutoFanCard afc;
@@ -485,7 +476,6 @@ void FanControlOverlay::populate_fans() {
                 afc.last_speed_pct = fan.speed_percent;
                 auto_fan_cards_.push_back(std::move(afc));
 
-                // Start spin animation if fan is running
                 update_auto_fan_animation(auto_fan_cards_.back(), fan.speed_percent);
 
                 spdlog::trace("[{}] Created fan_status_card for '{}' ({}%)", get_name(),
@@ -726,7 +716,6 @@ void FanControlOverlay::subscribe_to_fan_speeds() {
 }
 
 void FanControlOverlay::unsubscribe_from_fan_speeds() {
-    // Unbind AnimatedValue instances
     for (auto& afd : animated_fan_dials_) {
         afd.animation.unbind();
     }

@@ -113,7 +113,6 @@ void ControlsPanel::init_subjects() {
     }
     side_band_.init_subjects();
 
-    // Initialize dashboard display subjects for card live data
     // Using UI_MANAGED_SUBJECT_* macros for automatic RAII cleanup via SubjectManager
 
     // Sensors beyond the dedicated rows ("N more sensors" link on the temperature card)
@@ -123,7 +122,6 @@ void ControlsPanel::init_subjects() {
 
     UI_MANAGED_SUBJECT_INT(calib_grid_labels_, 1, "calib_grid_labels", subjects_);
 
-    // Fan speed display
     UI_MANAGED_SUBJECT_STRING(fan_speed_subject_, fan_speed_buf_, lv_tr("Off"),
                               "controls_fan_speed", subjects_);
     UI_MANAGED_SUBJECT_INT(fan_pct_subject_, 0, "controls_fan_pct", subjects_);
@@ -141,7 +139,6 @@ void ControlsPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(z_homed_, 0, "z_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(all_homed_, 0, "all_homed", subjects_);
 
-    // Position display subjects for Position card
     // Format: numeric value only (axis label is static in XML for proper alignment)
     std::strcpy(controls_pos_x_buf_, "   —   mm");
     std::strcpy(controls_pos_y_buf_, "   —   mm");
@@ -153,7 +150,6 @@ void ControlsPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(controls_pos_z_subject_, controls_pos_z_buf_, "   —   mm",
                               "controls_pos_z", subjects_);
 
-    // Speed override display subject
     std::strcpy(speed_override_buf_, "100%");
     UI_MANAGED_SUBJECT_STRING(speed_override_subject_, speed_override_buf_, "100%",
                               "controls_speed_pct", subjects_);
@@ -161,12 +157,10 @@ void ControlsPanel::init_subjects() {
     // Operation timeout guard (disables buttons while homing/QGL/Z-tilt in progress)
     operation_guard_.init_subject("controls_operation_in_progress", subjects_);
 
-    // Z-offset display subject for live tuning
     std::strcpy(controls_z_offset_buf_, "+0.000mm");
     UI_MANAGED_SUBJECT_STRING(controls_z_offset_subject_, controls_z_offset_buf_, "+0.000mm",
                               "controls_z_offset", subjects_);
 
-    // Observe homed_axes from PrinterState to update homing subjects using string observer
     homed_axes_observer_ = observe<const char*>(
         printer_state_.motion_state().get_homed_axes_subject(), this,
         [](ControlsPanel* self, const char* axes) {
@@ -282,7 +276,6 @@ void ControlsPanel::deinit_subjects() {
 }
 
 void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
-    // Call base class to store panel_ and parent_screen_
     PanelBase::setup(panel, parent_screen);
 
     if (!panel_) {
@@ -350,11 +343,9 @@ void ControlsPanel::on_deactivating(DeactivateReason reason) {
 }
 
 void ControlsPanel::refresh_all_displays() {
-    // Re-read cached values from subjects and update all formatted displays
     update_fan_display();
     update_speed_display();
 
-    // Re-read position subjects
     if (auto* subj = printer_state_.motion_state().get_gcode_position_x_subject()) {
         int centimm = lv_subject_get_int(subj);
         format_position(centimm, controls_pos_x_buf_, sizeof(controls_pos_x_buf_));
@@ -371,7 +362,6 @@ void ControlsPanel::refresh_all_displays() {
         lv_subject_set_string(&controls_pos_z_subject_, controls_pos_z_buf_);
     }
 
-    // Re-read Z-offset subjects
     if (auto* subj = printer_state_.motion_state().get_pending_z_offset_delta_subject()) {
         update_z_offset_delta_display(lv_subject_get_int(subj));
     }
@@ -585,7 +575,6 @@ void ControlsPanel::populate_secondary_fans() {
     secondary_fan_rows_.clear();
     helix::ui::safe_clean_children(secondary_fans_list_);
 
-    // Collect non-part-cooling fans and sort by display priority
     const auto& fans = printer_state_.fan_state().get_fans();
     std::vector<const helix::FanInfo*> secondary_fans;
     for (const auto& fan : fans) {
@@ -628,7 +617,6 @@ void ControlsPanel::populate_secondary_fans() {
         visible_count++;
     }
 
-    // Show "N additional fans >" row if there are more fans than visible
     int additional = static_cast<int>(secondary_fans.size()) - visible_count;
     if (additional > 0) {
         char more_buf[96];
@@ -640,7 +628,6 @@ void ControlsPanel::populate_secondary_fans() {
         lv_xml_create(secondary_fans_list_, "controls_fan_more_row", attrs);
     }
 
-    // Subscribe to per-fan speed subjects for reactive updates
     subscribe_to_secondary_fan_speeds();
 
     spdlog::trace("[{}] Populated {} secondary fans ({} visible, {} additional)", get_name(),

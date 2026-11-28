@@ -25,13 +25,13 @@ namespace helix {
 namespace wizard {
 
 std::vector<Step*> steps() {
-    // Rebuilt on every call — DO NOT cache the Step* in a static vector.
-    // The step singletons are lazily (re)created by their get_wizard_*_step()
+    // Rebuilt on every call: the Step* pointers must not be cached in a static
+    // vector. The step singletons are lazily (re)created by their get_wizard_*_step()
     // accessors and are destroyed by StaticPanelRegistry when the wizard tears
-    // down. A cached raw-pointer vector dangled across that teardown: adding a
-    // 3rd printer after the first wizard completed made a virtual call on a freed
-    // Step, crashing (SIGSEGV, vtable jump to heap). The accessors recreate a
-    // destroyed singleton on demand, so fetching fresh is always valid + cheap.
+    // down, so a cached pointer dangles after that teardown. A printer added once
+    // the first wizard has completed then makes a virtual call on freed memory.
+    // The accessors recreate a destroyed singleton on demand, so fetching fresh is
+    // always valid and cheap.
     std::vector<Step*> v;
     v.reserve(STEP_COUNT);
     v.push_back(get_wizard_touch_calibration_step());           // TouchCalibration = 0

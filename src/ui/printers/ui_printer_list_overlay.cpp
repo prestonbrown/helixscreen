@@ -61,7 +61,6 @@ std::string find_printer_id_from_event(lv_event_t* e) {
         if (parent) {
             const char* parent_name = lv_obj_get_name(parent);
             if (parent_name && std::string_view(parent_name) == "printer_list_container") {
-                // obj is a direct child of the container; it's the row
                 const char* row_name = lv_obj_get_name(obj);
                 if (row_name && row_name[0] != '\0') {
                     return std::string(row_name);
@@ -166,7 +165,6 @@ void PrinterListOverlay::populate_printer_list() {
             continue;
         }
 
-        // Tag with printer ID so callbacks can identify it
         lv_obj_set_name(row, id.c_str());
 
         if (lv_obj_t* name_label = find_required(row, "printer_name", get_name())) {

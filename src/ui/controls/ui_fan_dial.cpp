@@ -98,7 +98,6 @@ FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& f
         lv_obj_bind_flag_if_eq(rpm_label, &subjects_->rpm, LV_OBJ_FLAG_HIDDEN, 0);
     }
 
-    // Set rotation pivot on fan icon for spin animation
     if (fan_icon_) {
         lv_obj_set_style_transform_pivot_x(fan_icon_, LV_PCT(50), 0);
         lv_obj_set_style_transform_pivot_y(fan_icon_, LV_PCT(50), 0);
@@ -107,10 +106,8 @@ FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& f
     // The knob's padding is display-density scaled, which XML pixel values are not.
     lv_obj_set_style_pad_all(arc_, lv_dpx(4), LV_PART_KNOB);
 
-    // Attach auto-resize callback for dynamic arc scaling
     helix::ui::fan_arc_attach_auto_resize(root_);
 
-    // Set initial speed display, switch state, and fan animation
     update_speed_label(initial_speed);
     update_onoff_state(initial_speed);
     update_knob_glow(initial_speed);
@@ -179,7 +176,6 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         // Child widgets are destroyed with root_, before the subjects they bind
         helix::ui::safe_delete(root_);
 
-        // Move resources
         root_ = other.root_.get();
         arc_ = other.arc_.get();
         fan_icon_ = other.fan_icon_.get();
@@ -241,7 +237,6 @@ void FanDial::set_speed(int percent) {
         lv_arc_set_value(arc_, percent);
     }
 
-    // Update label, switch state, and fan animation
     update_speed_label(percent);
     update_onoff_state(percent);
     update_knob_glow(percent);
@@ -461,7 +456,6 @@ void FanDial::anim_completed_cb(lv_anim_t* anim) {
 }
 
 void FanDial::animate_speed_label(int from, int to) {
-    // Skip animation when value unchanged or animations disabled
     if (from == to || !DisplaySettingsManager::instance().get_animations_enabled()) {
         update_speed_label(to);
         update_onoff_state(to);
@@ -472,7 +466,6 @@ void FanDial::animate_speed_label(int from, int to) {
         return;
     }
 
-    // Cancel any existing animation
     lv_anim_delete(this, label_anim_exec_cb);
 
     // Keep syncing_ true for the entire animation to suppress arc change callbacks

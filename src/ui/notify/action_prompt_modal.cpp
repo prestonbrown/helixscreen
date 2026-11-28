@@ -649,7 +649,6 @@ lv_color_t ActionPromptModal::get_button_color(const std::string& color_name) {
         return theme_manager_get_color("danger");
     }
 
-    // Unknown color - default to primary
     spdlog::debug("[ActionPromptModal] Unknown color '{}', using primary", color_name);
     return theme_manager_get_color("primary");
 }

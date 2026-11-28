@@ -117,7 +117,6 @@ TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAP
     chamber.min_temp = 0;
     chamber.max_temp = 80;
 
-    // Zero all string buffers
     for (auto& h : heaters_) {
         h.display_buf.fill('\0');
         h.status_buf.fill('\0');
@@ -341,7 +340,6 @@ void TemperatureService::init_subjects() {
         return;
     }
 
-    // Initialize display + status + heating subjects for each heater
     const char* display_names[] = {"nozzle_temp_display", "bed_temp_display",
                                    "chamber_temp_display"};
     const char* status_names[] = {"nozzle_status", "bed_status", "chamber_status"};
@@ -488,7 +486,6 @@ void TemperatureService::select_extruder(const std::string& name) {
 
     auto& nozzle = heaters_[idx(HeaterType::Nozzle)];
 
-    // Rebind nozzle observers to the selected extruder's subjects
     SubjectLifetime temp_lt, target_lt;
     auto* temp_subj = printer_state_.temperature_state().get_extruder_temp_subject(name, temp_lt);
     auto* target_subj =
@@ -581,7 +578,6 @@ void TemperatureService::setup_mini_combined_graph(lv_obj_t* container) {
         config.series = {std::move(nozzle_spec), std::move(bed_spec)};
     }
 
-    // Add chamber series if printer has a chamber heater or sensor
     {
         const auto& chamber = heaters_[idx(HeaterType::Chamber)];
         auto* heater_subj =

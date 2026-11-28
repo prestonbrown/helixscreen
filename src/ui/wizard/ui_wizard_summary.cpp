@@ -44,7 +44,6 @@ WizardSummaryStep* get_wizard_summary_step() {
 // ============================================================================
 
 WizardSummaryStep::WizardSummaryStep() {
-    // Zero-initialize buffers
     std::memset(printer_name_buffer_, 0, sizeof(printer_name_buffer_));
     std::memset(printer_type_buffer_, 0, sizeof(printer_type_buffer_));
     std::memset(wifi_ssid_buffer_, 0, sizeof(wifi_ssid_buffer_));
@@ -121,24 +120,19 @@ void WizardSummaryStep::init_subjects() {
         subjects_initialized_ = false;
     }
 
-    // Load all values from config
     Config* config = Config::get_instance();
 
-    // Printer name
     std::string printer_name =
         config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "Unnamed Printer");
     spdlog::debug("[{}] Printer name from config: '{}'", get_name(), printer_name);
 
-    // Printer type
     std::string printer_type =
         config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "Unknown");
     spdlog::debug("[{}] Printer type from config: '{}'", get_name(), printer_type);
 
-    // WiFi SSID
     std::string wifi_ssid = config->get<std::string>(helix::wizard::WIFI_SSID, "Not configured");
     spdlog::debug("[{}] WiFi SSID from config: '{}'", get_name(), helix::redact::ssid(wifi_ssid));
 
-    // Moonraker connection (host:port)
     std::string moonraker_host =
         config->get<std::string>(config->df() + helix::wizard::MOONRAKER_HOST, "Not configured");
     int moonraker_port = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT,
@@ -153,25 +147,19 @@ void WizardSummaryStep::init_subjects() {
     }
     spdlog::debug("[{}] Moonraker connection: '{}'", get_name(), moonraker_connection);
 
-    // Bed configuration
     std::string bed_summary = format_bed_summary();
 
-    // Hotend configuration
     std::string hotend_summary = format_hotend_summary();
 
-    // Part cooling fan
     std::string part_fan = config->get<std::string>(config->df() + helix::wizard::PART_FAN, "");
     int part_fan_visible = !part_fan.empty() ? 1 : 0;
 
-    // Hotend cooling fan
     std::string hotend_fan = config->get<std::string>(config->df() + helix::wizard::HOTEND_FAN, "");
     int hotend_fan_visible = !hotend_fan.empty() ? 1 : 0;
 
-    // LED strip
     std::string led_strip = config->get<std::string>(config->df() + helix::wizard::LED_STRIP, "");
     int led_strip_visible = !led_strip.empty() ? 1 : 0;
 
-    // Filament sensor - get from FilamentSensorManager
     std::string filament_sensor = "None";
     int filament_sensor_visible = 0;
     auto& sensor_mgr = helix::FilamentSensorManager::instance();
@@ -183,7 +171,6 @@ void WizardSummaryStep::init_subjects() {
             break;
         }
     }
-    // If no runout, check for any assigned role
     if (filament_sensor_visible == 0) {
         for (const auto& sensor : sensors) {
             if (sensor.role != helix::FilamentSensorRole::NONE) {
@@ -195,7 +182,6 @@ void WizardSummaryStep::init_subjects() {
         }
     }
 
-    // Initialize and register all subjects
     // NOTE: Pass std::string.c_str() as initial_value, NOT the buffer itself.
     // The macro copies initial_value to buffer - passing the same pointer for both
     // is undefined behavior (overlapping source/dest in snprintf).
@@ -228,7 +214,6 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(filament_sensor_visible_, filament_sensor_visible,
                                      "summary_filament_sensor_visible");
 
-    // AMS/Multi-Material System
     std::string ams_type_str = "None";
     int ams_visible = 0;
 
@@ -248,7 +233,6 @@ void WizardSummaryStep::init_subjects() {
                                         "summary_ams_type");
     UI_SUBJECT_INIT_AND_REGISTER_INT(ams_visible_, ams_visible, "summary_ams_visible");
 
-    // Input Shaping / Accelerometer
     std::string input_shaper_str = "Not available";
     int input_shaper_visible = 0;
 
@@ -304,7 +288,6 @@ lv_obj_t* WizardSummaryStep::create(lv_obj_t* parent) {
     // Refresh subjects with latest config values before creating UI
     init_subjects();
 
-    // Create screen from XML
     screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_summary", nullptr));
     if (!screen_root_) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());

@@ -79,7 +79,6 @@ void PowerPanel::deinit_subjects() {
 }
 
 void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
-    // Call base class to store panel_ and parent_screen_
     PanelBase::setup(panel, parent_screen);
 
     if (!panel_) {
@@ -95,7 +94,6 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
     lv_obj_add_event_cb(panel_, on_panel_deleted, LV_EVENT_DELETE, this);
 
-    // Register XML event callback (once)
     static bool callbacks_registered = false;
     if (!callbacks_registered) {
         lv_xml_register_event_cb(nullptr, "on_power_device_toggle", on_power_device_toggle);
@@ -110,7 +108,6 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         callbacks_registered = true;
     }
 
-    // Use standard overlay panel setup (wires header, back button, handles responsive padding)
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overlay_content");
 
     lv_obj_t* overlay_content = helix::ui::find_required(panel_, "overlay_content", get_name());
@@ -181,7 +178,6 @@ void PowerPanel::clear_device_list() {
 void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
     clear_device_list();
 
-    // Notify about discovered devices (for selection config)
     on_devices_discovered(devices);
 
     bool has_devices = !devices.empty();
@@ -190,7 +186,7 @@ void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
     lv_subject_set_int(&has_devices_subject_, has_devices ? 1 : 0);
 
     if (!has_devices) {
-        status_buf_[0] = '\0'; // Clear status
+        status_buf_[0] = '\0';
         lv_subject_set_string(&status_subject_, status_buf_);
         return;
     }
@@ -199,10 +195,8 @@ void PowerPanel::populate_device_list(const std::vector<PowerDevice>& devices) {
         create_device_row(device);
     }
 
-    // Populate chip selector for home button
     populate_device_chips();
 
-    // Clear status message on success
     status_buf_[0] = '\0';
     lv_subject_set_string(&status_subject_, status_buf_);
 }
@@ -212,7 +206,6 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         return;
     }
 
-    // Convert technical name to user-friendly label
     std::string friendly_name =
         helix::get_display_name(device.device, helix::DeviceType::POWER_DEVICE);
 
@@ -223,7 +216,6 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
     bool is_locked = device.locked_while_printing &&
                      job_holds_machine(printer_state_.print_state().get_print_lifecycle());
 
-    // Create row using XML component with prettified device_name prop
     const char* attrs[] = {"device_name", friendly_name.c_str(), "locked",
                            is_locked ? "true" : "false", nullptr};
     lv_obj_t* row =
@@ -234,14 +226,12 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         return;
     }
 
-    // Find the toggle within the component
     lv_obj_t* toggle = helix::ui::find_required(row, "device_toggle", get_name());
     if (!toggle) {
         helix::ui::safe_delete(row);
         return;
     }
 
-    // Set initial state based on device status
     if (device.status == "on") {
         lv_obj_add_state(toggle, LV_STATE_CHECKED);
     } else {
@@ -253,7 +243,6 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
         lv_obj_add_state(toggle, LV_STATE_DISABLED);
     }
 
-    // Store device row info (use technical name for API calls)
     DeviceRow device_row;
     device_row.container = row;
     device_row.toggle = toggle;
@@ -319,10 +308,8 @@ void PowerPanel::on_power_device_toggle(lv_event_t* e) {
         if (!row) {
             spdlog::warn("[PowerPanel] Toggle has no parent row");
         } else {
-            // Retrieve index from user_data
             auto index = static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)));
 
-            // Bounds check before accessing vector
             if (index >= self.device_rows_.size()) {
                 spdlog::warn("[PowerPanel] Invalid device_row index {} (size: {})", index,
                              self.device_rows_.size());
@@ -385,7 +372,6 @@ void PowerPanel::on_devices_discovered(const std::vector<PowerDevice>& devices) 
         spdlog::info("[{}] Auto-selected all {} discovered devices", get_name(),
                      selected_devices_.size());
     } else {
-        // Prune stale devices that no longer exist
         std::set<std::string> discovered_set(discovered_devices_.begin(),
                                              discovered_devices_.end());
         std::vector<std::string> pruned;
@@ -487,7 +473,6 @@ void PowerPanel::populate_device_chips_impl() {
 }
 
 void PowerPanel::handle_chip_clicked(const std::string& device_name) {
-    // Toggle selection
     auto it = std::find(selected_devices_.begin(), selected_devices_.end(), device_name);
     if (it != selected_devices_.end()) {
         selected_devices_.erase(it);

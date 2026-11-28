@@ -143,7 +143,6 @@ void WizardLanguageChooserStep::init_subjects() {
 
     spdlog::debug("[{}] Initializing subjects", get_name());
 
-    // Initialize welcome text subject with string buffer
     strncpy(welcome_buffer_, kWelcomeTranslations[0], sizeof(welcome_buffer_) - 1);
     welcome_buffer_[sizeof(welcome_buffer_) - 1] = '\0';
     UI_MANAGED_SUBJECT_STRING(welcome_text_, welcome_buffer_, welcome_buffer_,
@@ -183,7 +182,6 @@ static void on_language_selected(lv_event_t* e) {
     // This updates the subject, calls lv_translation_set_language(), and persists to config
     SystemSettingsManager::instance().set_language(code);
 
-    // Refresh the wizard header with new translations
     ui_wizard_refresh_header_translations();
 
     // Update step state; the choice lights its row.
@@ -217,13 +215,11 @@ void WizardLanguageChooserStep::cycle_timer_cb(lv_timer_t* timer) {
 }
 
 void WizardLanguageChooserStep::cycle_welcome_text() {
-    // Advance to next language
     current_welcome_index_ = (current_welcome_index_ + 1) % kWelcomeCount;
     const char* new_text = kWelcomeTranslations[current_welcome_index_];
 
     spdlog::trace("[{}] Cycling to welcome text: {}", get_name(), new_text);
 
-    // Animate the crossfade
     animate_crossfade(new_text);
 }
 
@@ -234,14 +230,11 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
 
     lv_obj_t* welcome_header = helix::ui::find_required(screen_root_, "welcome_header", get_name());
     if (!welcome_header) {
-        // Fallback: just update the subject directly
         lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
 
-    // Check if animations are enabled
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
-        // No animation: just update the text immediately
         lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
@@ -290,7 +283,6 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
             lv_anim_start(&fade_in);
         }
 
-        // Clean up context
         delete ctx;
     });
     lv_anim_start(&fade_out);
@@ -310,7 +302,6 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
     }
 
-    // Create screen from XML
     screen_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_language_chooser", nullptr));
     if (!screen_root_) {
@@ -336,7 +327,6 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
         }
     }
 
-    // Start the welcome text cycling timer
     lv_timer_t* timer = lv_timer_create(cycle_timer_cb, kWelcomeCycleMs, this);
     cycle_timer_.reset(timer);
     spdlog::debug("[{}] Started welcome text cycle timer ({}ms)", get_name(), kWelcomeCycleMs);
@@ -367,7 +357,6 @@ void WizardLanguageChooserStep::cleanup() {
         }
     }
 
-    // Reset UI references
     // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
@@ -396,7 +385,6 @@ bool WizardLanguageChooserStep::should_skip() const {
 
     Config* cfg = Config::get_instance();
 
-    // Check if language has already been set in config
     std::string saved_language = cfg->get<std::string>("/language", "");
 
     // Skip if a language has been explicitly set (not empty and not just default "en")

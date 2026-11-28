@@ -316,7 +316,6 @@ static void update_display(TempDisplayData* data) {
     if (!data)
         return;
 
-    // Update current temp via subject
     if (data->raw) {
         helix::temperature_rules::format_number_compact(deci_to_degrees_f(data->current_deci),
                                                         data->current_text_buf,
@@ -327,7 +326,6 @@ static void update_display(TempDisplayData* data) {
     }
     lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
 
-    // Update target temp via subject (shows "--" when heater off)
     format_target_text(data);
 
     // hide_target_when_off drops the separator+target entirely once the heater
@@ -344,7 +342,6 @@ static void on_click(lv_event_t* e) {
     if (!data || data->event_cb_name[0] == '\0')
         return;
 
-    // Look up the registered callback by name
     lv_event_cb_t cb = lv_xml_get_event_cb(nullptr, data->event_cb_name);
     if (cb) {
         cb(e);
@@ -394,7 +391,6 @@ static void current_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subj
         return;
     }
 
-    // Get the parent container and its data
     lv_obj_t* container = lv_obj_get_parent(label);
     auto* data = get_data(container);
     if (!data) {
@@ -412,7 +408,6 @@ static void current_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subj
     // Update color since it depends on current vs target comparison
     update_heating_color(data);
 
-    // Update the text subject (which automatically updates the label via binding)
     format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf), deci);
     lv_subject_set_string(&data->current_text_subject, data->current_text_buf);
 }
@@ -426,7 +421,6 @@ static void target_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subje
         return;
     }
 
-    // Get the parent container and its data
     lv_obj_t* container = lv_obj_get_parent(label);
     auto* data = get_data(container);
     if (!data) {
@@ -443,14 +437,12 @@ static void target_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subje
     data->target_deci = deci;
     data->target_temp = temp_deg;
 
-    // Update target text (shows "--" when heater off, actual value when on)
     format_target_text(data);
 
     // hide_target_when_off keys off target_temp, so re-evaluate here rather than
     // in update_display() — the XML-bound path never goes through it.
     apply_target_visibility(data);
 
-    // Update color based on 4-state logic
     update_heating_color(data);
 }
 
@@ -463,7 +455,6 @@ static void mode_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
         return;
     }
 
-    // Get the parent container and its data
     lv_obj_t* container = lv_obj_get_parent(label);
     auto* data = get_data(container);
     if (!data) {
@@ -487,7 +478,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     LV_UNUSED(attrs);
     lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
 
-    // Create main container (row layout)
     lv_obj_t* container = lv_obj_create(parent);
     lv_obj_set_scrollable(container, false);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -495,7 +485,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
     lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
 
-    // Flex row layout
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
@@ -503,7 +492,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
 
     auto data_ptr = std::make_unique<TempDisplayData>();
 
-    // Parse size attribute for font selection
     const char* size = lv_xml_get_value_of(attrs, "size");
     const lv_font_t* font = get_font_for_size(size);
 
@@ -511,7 +499,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     lv_color_t text_color = theme_manager_get_color("text");
     lv_color_t muted_color = theme_manager_get_color("text_muted");
 
-    // Parse show_target attribute (default is false, opt-in to show)
     const char* show_target_str = lv_xml_get_value_of(attrs, "show_target");
     if (show_target_str && strcmp(show_target_str, "true") == 0) {
         data_ptr->show_target = true;
@@ -599,7 +586,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
                                                sizeof(data_ptr->current_text_buf),
                                                data_ptr->current_text_buf);
 
-    // Bind current label to subject for reactive updates
     data_ptr->current_text_observer =
         lv_label_bind_text(data_ptr->current_label, &data_ptr->current_text_subject, nullptr);
 
@@ -677,7 +663,6 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
     lv_obj_t* container = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
     auto* data = get_data(container);
 
-    // Process custom binding attributes
     for (int i = 0; attrs[i]; i += 2) {
         const char* name = attrs[i];
         const char* value = attrs[i + 1];
@@ -687,12 +672,10 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
         }
 
         if (strcmp(name, "bind_current") == 0) {
-            // Bind current temperature to a subject (NULL = global scope)
             lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
             if (subject && data && data->current_label) {
                 lv_subject_add_observer_obj(subject, current_temp_observer_cb, data->current_label,
                                             nullptr);
-                // Set initial value
                 int deci = lv_subject_get_int(subject);
                 data->current_deci = deci;
                 data->current_temp = deci_to_degrees(deci);
@@ -704,20 +687,18 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                 spdlog::warn("[temp_display] Subject '{}' not found for bind_current", value);
             }
         } else if (strcmp(name, "bind_target") == 0) {
-            // Bind target temperature to a subject (NULL = global scope)
             lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
             if (subject && data && data->current_label) {
                 data->has_target_binding = true; // Mark as heater mode (not sensor-only)
-                // Use current_label as observer target (callback traverses to
-                // parent container to find data — works for any child label)
+                // Observe through the target label, or the current one when the
+                // display has no target label: the callback walks up to the parent
+                // container for the data, so any child label serves
                 lv_obj_t* obs_target =
                     data->target_label ? data->target_label : data->current_label;
                 lv_subject_add_observer_obj(subject, target_temp_observer_cb, obs_target, nullptr);
-                // Set initial value
                 data->target_deci = lv_subject_get_int(subject);
                 data->target_temp = deci_to_degrees(data->target_deci);
                 format_target_text(data);
-                // Apply initial heating color
                 update_heating_color(data);
                 spdlog::trace("[temp_display] Bound target to subject '{}' ({}°C)", value,
                               data->target_temp);
@@ -743,7 +724,6 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                 data->has_mode_binding = true;
                 lv_subject_add_observer_obj(subject, mode_observer_cb, data->current_label,
                                             nullptr);
-                // Set initial value and recolor
                 data->current_mode = lv_subject_get_int(subject);
                 update_heating_color(data);
                 spdlog::trace("[temp_display] Bound mode to subject '{}' (mode={})", value,
@@ -763,7 +743,6 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
                 spdlog::warn("[temp_display] Subject '{}' not found for bind_unit", value);
             }
         } else if (strcmp(name, "event_cb") == 0) {
-            // Store callback name and make widget clickable
             if (data && value && value[0] != '\0') {
                 strncpy(data->event_cb_name, value, sizeof(data->event_cb_name) - 1);
                 data->event_cb_name[sizeof(data->event_cb_name) - 1] = '\0';
@@ -774,7 +753,6 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
         }
     }
 
-    // Apply base object properties (width, height, align, style_* etc.)
     lv_xml_obj_apply(state, attrs);
 }
 
@@ -808,7 +786,6 @@ void ui_temp_display_set_current(lv_obj_t* obj, int current) {
 
     data->current_temp = current;
 
-    // Update current temp via subject for efficiency
     // Note: this API takes whole degrees, so format as "XX.0"
     snprintf(data->current_text_buf, sizeof(data->current_text_buf), "%.1f",
              helix::units::to_display_temp(current));

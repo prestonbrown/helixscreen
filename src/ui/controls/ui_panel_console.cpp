@@ -222,12 +222,10 @@ lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
 // Lifecycle Hooks
 
 void ConsolePanel::on_activate() {
-    // Call base class first
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
 
-    // Reset state for fresh activation
     user_scrolled_up_ = false;
     history_index_ = -1;
     saved_input_.clear();
@@ -235,7 +233,6 @@ void ConsolePanel::on_activate() {
     // Refresh the firmware-noise filter for the active printer (cheap if unchanged).
     rebuild_firmware_filter();
 
-    // Refresh history when panel becomes visible
     fetch_history();
     subscribe_to_gcode_responses();
 }
@@ -256,7 +253,7 @@ void ConsolePanel::on_ui_destroyed() {
 // Data Loading
 
 void ConsolePanel::fetch_history() {
-    // I5: Prevent concurrent fetches (rapid activate/deactivate cycles). A
+    // Prevent concurrent fetches (rapid activate/deactivate cycles). A
     // healthy in-flight fetch short-circuits here; a stuck one (response lost
     // >30s ago) falls through and is recovered by try_acquire() below.
     if (fetch_guard_.active() && !fetch_guard_.is_stuck()) {
@@ -279,7 +276,6 @@ void ConsolePanel::fetch_history() {
                      get_name(), fetch_guard_.stuck_threshold().count());
     }
 
-    // Update status while loading
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Loading..."));
     lv_subject_set_string(&status_subject_, status_buf_);
 
@@ -588,7 +584,6 @@ void ConsolePanel::subscribe_to_gcode_responses() {
         return;
     }
 
-    // Generate unique handler name
     static std::atomic<uint64_t> s_handler_id{0};
     gcode_handler_name_ = "console_panel_" + std::to_string(++s_handler_id);
 
@@ -635,10 +630,8 @@ void ConsolePanel::add_entry(const GcodeEntry& entry) {
     entries_.push_back(entry);
     entries_.back().id = next_entry_id_++;
 
-    // Enforce max size (remove oldest)
     while (entries_.size() > MAX_ENTRIES && console_container_) {
         entries_.pop_front();
-        // Remove oldest entry widget (first child that isn't empty_state_)
         lv_obj_t* first_child = lv_obj_get_child(console_container_, 0);
         if (first_child == empty_state_) {
             first_child = lv_obj_get_child(console_container_, 1);
@@ -653,7 +646,6 @@ void ConsolePanel::add_entry(const GcodeEntry& entry) {
 
     update_visibility();
 
-    // Smart auto-scroll: only scroll if user hasn't scrolled up manually
     if (!user_scrolled_up_) {
         scroll_to_bottom();
     }
@@ -681,7 +673,6 @@ void ConsolePanel::send_gcode_command() {
     std::string command(text);
     spdlog::info("[{}] Sending G-code: {}", get_name(), command);
 
-    // Add to command history (newest first) and reset browsing state
     command_history_.push_front(command);
     if (command_history_.size() > kMaxHistory) {
         command_history_.pop_back();
@@ -689,10 +680,8 @@ void ConsolePanel::send_gcode_command() {
     history_index_ = -1;
     saved_input_.clear();
 
-    // Clear the input field immediately
     lv_textarea_set_text(gcode_input_, "");
 
-    // Add command to console display
     GcodeEntry cmd_entry;
     cmd_entry.message = command;
     cmd_entry.timestamp = 0.0;

@@ -30,7 +30,6 @@ void fan_spin_start(lv_obj_t* icon, int speed_pct) {
         kFanSpinMaxDurationMs -
         static_cast<uint32_t>((kFanSpinMaxDurationMs - kFanSpinMinDurationMs) * speed_pct / 100);
 
-    // Delete existing animation and restart with new duration
     lv_anim_delete(icon, fan_spin_anim_cb);
 
     lv_anim_t anim;

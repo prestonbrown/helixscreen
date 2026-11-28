@@ -61,7 +61,6 @@ void WizardHeaterSelectStep::init_subjects() {
     // Each visit re-initializes; drop the previous visit's subjects and names first.
     subjects_.deinit_all();
 
-    // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
     helix::ui::wizard::init_int_subject(subjects_, bed_heater_selected_, 0, "bed_heater_selected");
     helix::ui::wizard::init_int_subject(subjects_, hotend_heater_selected_, 0,
@@ -101,7 +100,6 @@ static void on_hotend_heater_dropdown_changed(lv_event_t* e) {
 // ============================================================================
 
 void WizardHeaterSelectStep::register_callbacks() {
-    // Register XML event callbacks for dropdown value changes
     lv_xml_register_event_cb(nullptr, "on_bed_heater_dropdown_changed",
                              on_bed_heater_dropdown_changed);
     lv_xml_register_event_cb(nullptr, "on_hotend_heater_dropdown_changed",
@@ -123,7 +121,6 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
     }
 
-    // Create screen from XML
     screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_heater_select", nullptr));
     if (!screen_root_) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
@@ -133,7 +130,6 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Populate bed heater dropdown (discover + filter + populate + restore)
     // Event handler is wired via XML <event_cb>
     wizard_populate_hardware_dropdown(
         screen_root_, "bed_heater_dropdown", &bed_heater_selected_, bed_heater_items_,
@@ -143,7 +139,6 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
         helix::wizard::BED_HEATER, [](const PrinterHardware& hw) { return hw.guess_bed_heater(); },
         "[Wizard Heater]", helix::ui::wizard::display_name_for(helix::DeviceType::HEATER));
 
-    // Populate hotend heater dropdown (discover + filter + populate + restore)
     // Event handler is wired via XML <event_cb>
     wizard_populate_hardware_dropdown(
         screen_root_, "hotend_heater_dropdown", &hotend_heater_selected_, hotend_heater_items_,
@@ -167,12 +162,10 @@ void WizardHeaterSelectStep::cleanup() {
 
     Config* config = Config::get_instance();
 
-    // Save bed heater selection
     // Store the heater name to BOTH heater and sensor paths (Klipper heaters provide temp readings)
     helix::ui::wizard::save_dropdown_selection(&bed_heater_selected_, bed_heater_items_,
                                                helix::wizard::BED_HEATER, "[Wizard Heater]");
 
-    // Get the selected bed heater name and also save it as the sensor
     int32_t bed_idx = lv_subject_get_int(&bed_heater_selected_);
     if (bed_idx >= 0 && static_cast<size_t>(bed_idx) < bed_heater_items_.size()) {
         const std::string& bed_heater_name = bed_heater_items_[static_cast<size_t>(bed_idx)];
@@ -180,12 +173,10 @@ void WizardHeaterSelectStep::cleanup() {
         spdlog::debug("[{}] Bed sensor set to: {}", get_name(), bed_heater_name);
     }
 
-    // Save hotend heater selection
     // Store the heater name to BOTH heater and sensor paths
     helix::ui::wizard::save_dropdown_selection(&hotend_heater_selected_, hotend_heater_items_,
                                                helix::wizard::HOTEND_HEATER, "[Wizard Heater]");
 
-    // Get the selected hotend heater name and also save it as the sensor
     int32_t hotend_idx = lv_subject_get_int(&hotend_heater_selected_);
     if (hotend_idx >= 0 && static_cast<size_t>(hotend_idx) < hotend_heater_items_.size()) {
         const std::string& hotend_heater_name =
@@ -194,12 +185,10 @@ void WizardHeaterSelectStep::cleanup() {
         spdlog::debug("[{}] Hotend sensor set to: {}", get_name(), hotend_heater_name);
     }
 
-    // Persist to disk
     if (!config->save()) {
         NOTIFY_ERROR(lv_tr("Failed to save heater configuration"));
     }
 
-    // Reset UI references
     // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
@@ -212,6 +201,5 @@ void WizardHeaterSelectStep::cleanup() {
 // ============================================================================
 
 bool WizardHeaterSelectStep::is_validated() const {
-    // Always return true for baseline implementation
     return true;
 }

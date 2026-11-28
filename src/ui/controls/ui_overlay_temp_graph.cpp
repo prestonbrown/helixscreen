@@ -260,7 +260,6 @@ lv_obj_t* TempGraphOverlay::create(lv_obj_t* parent) {
 void TempGraphOverlay::on_activate() {
     OverlayBase::on_activate();
 
-    // Resolve dependencies
     printer_state_ = &get_printer_state();
     temp_control_panel_ =
         helix::PanelWidgetManager::instance().shared_resource<TemperatureService>();
@@ -277,14 +276,12 @@ void TempGraphOverlay::on_activate() {
 
     discover_series();
 
-    // Build TempGraphSeriesSpec vector from discovered series
     std::vector<helix::TempGraphSeriesSpec> specs;
     specs.reserve(series_.size());
     for (const auto& s : series_) {
         specs.push_back({s.klipper_name, s.color, s.has_target, s.display_name});
     }
 
-    // Create controller (handles graph creation, observers, history, auto-range)
     if (graph_container_) {
         // Detach observers synchronously then defer memory deallocation.
         // Synchronous detach prevents use-after-free when deferred delete
@@ -320,7 +317,6 @@ void TempGraphOverlay::on_activate() {
         ui_temp_graph_set_tooltip_enabled(controller_->graph(), true);
     }
 
-    // Map series IDs back from controller
     if (controller_ && controller_->is_valid()) {
         for (auto& s : series_) {
             s.series_id = controller_->series_id_for(s.klipper_name);
@@ -386,7 +382,6 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     for (auto& observer : preset_observers_) {
         observer.reset();
     }
-    // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
 
     series_.clear();
@@ -542,7 +537,7 @@ void TempGraphOverlay::discover_series() {
             s.klipper_name = ext->name;
             s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
             s.has_target = true;
-            s.is_dynamic = (extruders.size() > 1); // Dynamic if multi-extruder
+            s.is_dynamic = (extruders.size() > 1);
             series_.push_back(std::move(s));
         }
     }
@@ -674,7 +669,6 @@ void TempGraphOverlay::create_chips() {
 
         s.chip = chip;
 
-        // Apply initial visibility state (set by apply_default_visibility)
         update_chip_style(i);
         if (controller_ && controller_->is_valid() && s.series_id != SeriesId::None) {
             ui_temp_graph_show_series(controller_->graph(), s.series_id, s.visible);
@@ -769,7 +763,7 @@ void TempGraphOverlay::configure_control_strip() {
     // DECLARATIVE: strip visibility and graph_outer width are driven from XML
     // by the temp_graph_mode subject (bind_flag_if_not_eq per strip; graph width
     // via the temp_graph_full_width subject_expr + orthogonal bind_style_if
-    // pairs on graph_outer_container). This function is now the DATA half only:
+    // pairs on graph_outer_container). This function is the DATA half only:
     // preset values, callback user_data, and the chamber-async-clamp that can't
     // move to XML because it depends on the fetched chamber max_temp.
 
@@ -795,7 +789,6 @@ void TempGraphOverlay::configure_control_strip() {
     if (!active_strip)
         return;
 
-    // Get preset config from TemperatureService
     if (!temp_control_panel_)
         return;
     auto& heater = temp_control_panel_->heater(heater_type);
@@ -890,7 +883,6 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
 
     const auto send_targets = [&]() {
         if (!aimed_elsewhere) {
-            // Update local state
             self->temp_control_panel_->set_heater(
                 type, self->temp_control_panel_->heater(type).current,
                 helix::temperature_rules::degrees_to_deci(data.preset_value));

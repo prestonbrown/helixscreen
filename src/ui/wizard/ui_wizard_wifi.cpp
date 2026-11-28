@@ -181,7 +181,6 @@ void WizardWifiStep::update_wifi_ip(const char* ip, const std::string& mac) {
     spdlog::debug("[{}] Updating WiFi IP: {}", get_name(), ip ? ip : "(none)");
     lv_subject_set_string(&wifi_ip_, ip ? ip : "");
 
-    // Update WiFi MAC when we have an IP (connected)
     if (ip && ip[0] != '\0') {
         spdlog::debug("[{}] WiFi MAC from backend: '{}' (len={})", get_name(),
                       helix::redact::mac(mac), mac.size());
@@ -298,14 +297,12 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
 
     clear_network_list();
 
-    // Sort by signal strength
     std::vector<WiFiNetwork> sorted_networks = networks;
     std::sort(sorted_networks.begin(), sorted_networks.end(),
               [](const WiFiNetwork& a, const WiFiNetwork& b) {
                   return a.signal_strength > b.signal_strength;
               });
 
-    // Connected network SSID
     const std::string& connected_ssid = status.ssid;
     if (!connected_ssid.empty()) {
         spdlog::debug("[{}] Currently connected to: {}", get_name(),
@@ -316,7 +313,6 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
     // on a 2.4GHz-only radio every row would read "2.4G" (helixscreen#1189).
     const bool show_bands = helix::ui::wifi::wifi_scan_spans_multiple_bands(sorted_networks);
 
-    // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
         const std::string signal_state =
@@ -339,7 +335,6 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
         snprintf(item_name, sizeof(item_name), "network_item_%d", item_counter++);
         lv_obj_set_name(item, item_name);
 
-        // Create per-instance data with back-reference to this step
         std::string band_label_text =
             show_bands ? helix::ui::wifi::wifi_format_band_label(network.band_mask) : std::string();
         WifiWizardNetworkItemData* item_data =
@@ -351,7 +346,6 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
             lv_label_bind_text(ssid_label, &item_data->ssid, nullptr);
         }
 
-        // Bind the band badge to this row's own subjects
         lv_obj_t* band_label = helix::ui::find_required(item, "band_label", get_name());
         if (band_label) {
             lv_label_bind_text(band_label, &item_data->band_text, nullptr);
@@ -376,7 +370,6 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
         // Store network data for click handler (callback registered via XML event_cb)
         lv_obj_set_user_data(item, item_data);
 
-        // Register DELETE handler for automatic cleanup when widget is deleted
         lv_obj_add_event_cb(item, network_item_delete_cb, LV_EVENT_DELETE, nullptr);
 
         spdlog::debug("[{}] Added network: {} ({}%, {})", get_name(),
@@ -485,7 +478,6 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
     if (!toggle)
         return;
 
-    // Don't process toggle if hardware unavailable
     if (lv_subject_get_int(&wifi_hardware_available_) == 0) {
         spdlog::debug("[{}] Ignoring toggle - WiFi hardware unavailable", get_name());
         return;
@@ -541,7 +533,6 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
                 return;
             }
 
-            // Capture weak reference for async safety
             std::weak_ptr<WiFiManager> weak_mgr = wifi_manager_;
             auto token = lifetime_.token();
 
@@ -601,7 +592,6 @@ void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
     if (network.is_secured) {
         show_password_modal(network.ssid.c_str());
     } else {
-        // Connect to open network
         if (wifi_manager_) {
             auto token = lifetime_.token();
             wifi_manager_->connect(
@@ -915,7 +905,6 @@ void WizardWifiStep::init_wifi_manager() {
     update_ethernet_status();
     crash_handler::breadcrumb::note("wifi", "eth_status_done");
 
-    // Check WiFi hardware availability and update subject
     bool hw_available = wifi_manager_ && wifi_manager_->has_hardware();
     crash_handler::breadcrumb::note("wifi", "hw_avail", hw_available ? 1 : 0);
     lv_subject_set_int(&wifi_hardware_available_, hw_available ? 1 : 0);
@@ -946,12 +935,10 @@ void WizardWifiStep::init_wifi_manager() {
 
     // If the backend isn't up yet, actively re-attempt bringup. The constructor's
     // one-shot start_async() can lose a fresh-boot race against wpa_supplicant
-    // creating its control socket; the old (blocking) wizard masked this because
-    // it re-ran set_enabled(true) on every step entry, so users could "skip then
-    // go back" to recover. The non-blocking rewrite dropped that retry, leaving
-    // the backend permanently dead (helixscreen#1036). retry_async() restores it
-    // without blocking the UI thread: on success the backend fires READY, which
-    // drives the state observer above back into apply_wifi_backend_state().
+    // creating its control socket, and it is the only other attempt, so without this
+    // retry the backend stays dead (helixscreen#1036). retry_async() makes the
+    // attempt without blocking the UI thread: on success the backend fires READY,
+    // which drives the state observer above back into apply_wifi_backend_state().
     if (!wifi_manager_->is_enabled()) {
         crash_handler::breadcrumb::note("wifi", "retry_async");
         wifi_manager_->retry_async();
@@ -991,7 +978,6 @@ void WizardWifiStep::apply_wifi_backend_state() {
     if (enabled) {
         crash_handler::breadcrumb::note("wifi", "apply_state_enabled");
 
-        // Check if already connected
         wifi_manager_->get_status_async(
             lifetime_.token(),
             [this, gen = status_generation_](const WifiBackend::ConnectionStatus& status) {
@@ -1002,7 +988,6 @@ void WizardWifiStep::apply_wifi_backend_state() {
                     spdlog::info("[{}] Already connected to '{}' with IP {}", get_name(),
                                  helix::redact::ssid(status.ssid), status.ip_address);
 
-                    // Update status and IP display
                     std::string status_msg = std::string(lv_tr("Connected to ")) + status.ssid;
                     update_wifi_status(status_msg.c_str());
                     update_wifi_ip(status.ip_address.c_str(), status.mac_address);
@@ -1022,7 +1007,8 @@ void WizardWifiStep::apply_wifi_backend_state() {
                 // guard + UI thread safety. Move the vector into the lambda so
                 // cached_networks_ is only written on the UI thread; otherwise
                 // a back-to-back scan callback on the BG thread could rewrite
-                // cached_networks_ while the UI thread is mid-sort (mirrors #769 fix at line 553).
+                // cached_networks_ while the UI thread is mid-sort (mirrors the #769 guard in
+                // handle_wifi_toggle_changed()).
                 token.defer("WizardWifiStep::apply_scan", [this, scanned = networks]() mutable {
                     if (cleanup_called_ || !screen_root_) {
                         crash_handler::breadcrumb::note("wifi", "scan_apply_skip");

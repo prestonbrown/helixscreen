@@ -7,8 +7,6 @@
  *
  * @pattern Auto-detects background thread context; marshals to main thread
  * @threading Safe from any thread - automatically defers via helix::ui::queue_update() when needed
- *
- * @see "Thread-safe:" comment in show() implementation
  */
 
 #include "ui_notification.h"
@@ -195,7 +193,6 @@ static void async_message_callback(void* user_data) {
             ToastManager::instance().show(data->severity, display_buf, data->duration_ms);
         }
 
-        // Add to history
         NotificationHistoryEntry entry = {};
         entry.timestamp_ms = lv_tick_get();
         entry.severity = data->severity;
@@ -235,7 +232,6 @@ static void async_error_callback(void* user_data) {
         data->modal = helix::ui::fault_alert_gets_modal(data->modal, data->fault);
 
         if (data->modal && data->has_title) {
-            // Check if a modal with the same title is already showing
             const std::string fault_key =
                 data->fault ? helix::ui::fault_dedup_key(data->title, data->message)
                             : std::string();
@@ -246,7 +242,6 @@ static void async_error_callback(void* user_data) {
                 return;
             }
 
-            // Show modal dialog for critical errors
             lv_obj_t* dialog =
                 helix::ui::modal_alert(data->title, data->message, ModalSeverity::Error, "OK");
             if (data->fault) {
@@ -262,7 +257,6 @@ static void async_error_callback(void* user_data) {
             }
         }
 
-        // Add to history
         NotificationHistoryEntry entry = {};
         entry.timestamp_ms = lv_tick_get();
         entry.severity = ToastSeverity::ERROR;
@@ -290,7 +284,6 @@ static void async_error_callback(void* user_data) {
 // ============================================================================
 
 void ui_notification_init() {
-    // Capture main thread ID for thread-safety detection
     g_main_thread_id = std::this_thread::get_id();
     g_main_thread_id_initialized.store(true);
 
@@ -345,7 +338,6 @@ static void show_notification(const char* title, const char* message, ToastSever
         return;
 
     if (is_main_thread()) {
-        // Main thread: call LVGL directly
         if (should_show_toast(severity)) {
             ToastManager::instance().show(severity, display_msg.c_str(), duration_ms);
         }
@@ -367,7 +359,6 @@ static void show_notification(const char* title, const char* message, ToastSever
         NotificationHistory::instance().add(entry);
         helix::ui::notification_refresh_from_history();
     } else {
-        // Background thread: marshal to main thread
         auto* data = new (std::nothrow) AsyncMessageData{};
         if (!data) {
             spdlog::error("[Notification] Failed to allocate memory for async notification");
@@ -404,7 +395,6 @@ static void add_history_only_entry(ToastSeverity severity, const char* title, co
     }
     report_event(severity, title, message, action);
 
-    // Build entry directly — no toast, history only
     NotificationHistoryEntry entry = {};
     entry.timestamp_ms = lv_tick_get();
     entry.severity = severity;
@@ -582,7 +572,6 @@ static void show_error_notification(const char* title, const char* message, bool
         // than a second modal stacked on it.
         modal = helix::ui::fault_alert_gets_modal(modal, fault);
 
-        // Main thread: call LVGL directly
         if (modal && title) {
             // Check if a modal with the same title is already showing
             // This prevents duplicate modals when multiple components report the same error
@@ -593,7 +582,6 @@ static void show_error_notification(const char* title, const char* message, bool
                 return;
             }
 
-            // Show modal dialog for critical errors
             lv_obj_t* dialog = helix::ui::modal_alert(title, message, ModalSeverity::Error, "OK");
             if (fault) {
                 helix::ui::track_fault_modal(dialog, fault_key);
@@ -608,7 +596,6 @@ static void show_error_notification(const char* title, const char* message, bool
             }
         }
 
-        // Add to history
         NotificationHistoryEntry entry = {};
         entry.timestamp_ms = lv_tick_get();
         entry.severity = ToastSeverity::ERROR;
@@ -628,14 +615,12 @@ static void show_error_notification(const char* title, const char* message, bool
         NotificationHistory::instance().add(entry);
         helix::ui::notification_refresh_from_history();
     } else {
-        // Background thread: marshal to main thread
         auto* data = new (std::nothrow) AsyncErrorData{};
         if (!data) {
             spdlog::error("[Notification] Failed to allocate memory for async error notification");
             return;
         }
 
-        // Copy title (can be nullptr)
         if (title) {
             strncpy(data->title, title, sizeof(data->title) - 1);
             data->title[sizeof(data->title) - 1] = '\0';
@@ -645,7 +630,6 @@ static void show_error_notification(const char* title, const char* message, bool
             data->has_title = false;
         }
 
-        // Copy message
         strncpy(data->message, message, sizeof(data->message) - 1);
         data->message[sizeof(data->message) - 1] = '\0';
 
@@ -698,7 +682,6 @@ void helix::ui::present_notification_notice(const Notice& notice) {
 static void notification_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
 
-    // Get notification data from subject
     NotificationData* data = (NotificationData*)lv_subject_get_pointer(subject);
     if (!data) {
         // Silently ignore - this happens during initialization when subject is nullptr
@@ -709,11 +692,9 @@ static void notification_observer_cb(lv_observer_t* observer, lv_subject_t* subj
         return;
     }
 
-    // Route to modal or toast based on show_modal flag
     if (data->show_modal) {
         ui_notification_error(data->title, data->message, true);
     } else {
-        // Route to toast based on severity
         switch (data->severity) {
         case ToastSeverity::INFO:
             ui_notification_info(data->message);

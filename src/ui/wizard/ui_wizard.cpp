@@ -284,10 +284,10 @@ static void ui_wizard_purge_subtree_anims(lv_obj_t* root);
 //      the matching style-transition animation. Style transitions set
 //      `var = tr` (a `trans_t*`, see `lv_obj_style_create_transition` in
 //      `lv_obj_style.c:465`) — `lv_anim_delete(obj, NULL)` cannot match
-//      them. The previous fix relied on (1) alone, leaving transition
-//      anims live; a delayed `trans_anim_start_cb` then SEGVs in
-//      `lv_obj_get_style_prop` on the freed `trans_t` after the next
-//      step rebuilds the tree (#871, #880, bundle XBPDDJVK on v0.99.45).
+//      them. (1) alone leaves transition anims live, and a delayed
+//      `trans_anim_start_cb` then SEGVs in `lv_obj_get_style_prop` on the
+//      freed `trans_t` after the next step rebuilds the tree
+//      (#871, #880, bundle XBPDDJVK on v0.99.45).
 //
 // Mirror `lv_obj_destructor`'s pattern: disable style refresh around the
 // `remove_style_all` call so we don't kick off invalidations on widgets
@@ -297,9 +297,8 @@ static void ui_wizard_purge_subtree_anims(lv_obj_t* root);
 // about to be deleted by `lv_obj_clean`. The root container itself
 // SURVIVES the clean and must keep its flex/layout styles, otherwise
 // the next step's widgets are added to a styleless container and the
-// layout collapses (regression caught on AD5M after the first attempt
-// at this fix). The recursion descends through children only; for the
-// initial call we visit the root just for `lv_anim_delete`.
+// layout collapses. The recursion descends through children only; for
+// the initial call we visit the root just for `lv_anim_delete`.
 static void ui_wizard_purge_subtree_anims_recursive(lv_obj_t* obj) {
     if (!obj)
         return;
@@ -418,7 +417,6 @@ void ui_wizard_init_subjects() {
                      cfg->get_preset());
     }
 
-    // Initialize subjects with defaults using managed macros for RAII cleanup
     UI_MANAGED_SUBJECT_INT(current_step, 1, "current_step", wizard_subjects_);
     UI_MANAGED_SUBJECT_INT(total_steps, 10, "total_steps",
                            wizard_subjects_); // 10 steps: WiFi, Connection, Printer, Heater,
@@ -495,7 +493,6 @@ void ui_wizard_deinit_subjects() {
     g_step_subset.clear();
     g_targeted_on_complete = nullptr;
 
-    // Use SubjectManager for RAII cleanup - handles all registered subjects
     wizard_subjects_.deinit_all();
     wizard_subjects_initialized = false;
     spdlog::debug("[Wizard] Subjects deinitialized");
@@ -594,15 +591,13 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     // leading steps (touch calibration, language, WiFi) that should be skipped.
     // Per-step should_skip(ctx) already folds in fbdev/already-calibrated,
     // language-already-set, Android, and subsequent-printer logic, so a single
-    // wizard_next() over the live skip vector replaces the old hand-rolled
-    // cascade.
+    // wizard_next() over the live skip vector does the forwarding.
     //
     // Targeted (subset) sessions run an explicit step list and must never
     // auto-skip out of it, so this leading-step forwarding is gated off.
     if (g_step_subset.empty() && step == StepId::TouchCalibration) {
         auto ctx = helix::wizard::build_context();
         auto skips = helix::wizard::skip_vector(ctx);
-        // If the first step itself is skipped, advance to the first visible one.
         if (!skips.empty() && skips.front().id == StepId::TouchCalibration &&
             skips.front().skipped) {
             auto nxt = helix::wizard_next(StepId::TouchCalibration, skips);
@@ -671,7 +666,6 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     crash_handler::breadcrumb::note("wiz", "notify_chrome_text", static_cast<long>(step_idx));
     publish_chrome_texts();
 
-    // Load screen content
     ui_wizard_load_screen(step);
 
     // Force layout update on entire wizard after screen is loaded
@@ -834,7 +828,6 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         auto ctx = helix::wizard::build_context();
         auto skips = helix::wizard::skip_vector(ctx);
         StepId redirected = step;
-        // If the requested step is now skipped, walk forward to the first visible.
         for (const auto& entry : skips) {
             if (entry.id == redirected && entry.skipped) {
                 auto nxt = helix::wizard_next(redirected, skips);
@@ -857,8 +850,7 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         }
     }
 
-    // Set title and subtitle from XML metadata (no more hardcoded strings!)
-    // Use lv_tr() to translate the title/subtitle dynamically based on current language
+    // Set title and subtitle from XML metadata, translated by lv_tr().
     // Per-notify breadcrumbs pin which subject observer is faulty if #848/#843 recurs.
     const char* comp_name = s->component_name();
     const char* title = get_step_title_from_xml(comp_name);
@@ -893,7 +885,6 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         get_wizard_wifi_step()->init_wifi_manager();
         break;
     case StepId::PrinterIdentify:
-        // Override subtitle with dynamic detection status
         lv_subject_set_string(&wizard_subtitle,
                               get_wizard_printer_identify_step()->get_detection_status());
         break;
@@ -908,7 +899,6 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
     }
     crash_handler::breadcrumb::note("wiz", "create_end", static_cast<long>(step_idx));
 
-    // Update current screen step tracking
     current_screen_step = step;
     s_left_step.reset();
 }
@@ -928,7 +918,6 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
 // post-wizard re-discovery, or the deferred Home navigation — those are
 // completion-mode specific and remain in ui_wizard_complete().
 static void dismiss_wizard_container() {
-    // Cleanup current wizard screen
     ui_wizard_cleanup_current_screen();
 
     // Dismiss any on-screen keyboard left over from wizard text inputs
@@ -946,7 +935,6 @@ static void dismiss_wizard_container() {
         wizard_container = nullptr;
     }
 
-    // Clear global wizard state
     set_wizard_active(false);
 }
 
@@ -980,7 +968,6 @@ size_t ui_wizard_record_expected_hardware(helix::Config* config) {
         }
     }
 
-    // User-selected runout sensor.
     {
         auto& sensor_mgr = helix::FilamentSensorManager::instance();
         auto sensors = sensor_mgr.get_sensors();
@@ -1074,7 +1061,6 @@ void ui_wizard_complete() {
     // navigate AFTER those queued updates have been processed.
     g_completion_timers.arm_home_navigation();
 
-    // Show success toast when adding a subsequent printer
     if (config->get_printer_ids().size() > 1) {
         NOTIFY_SUCCESS(lv_tr("New printer successfully added"));
     }
@@ -1168,10 +1154,9 @@ static void on_back_clicked(lv_event_t* e) {
     navigating = false;
 }
 
-/// True if the filament-sensor step is being skipped purely because of sparse
-/// standalone sensors (not because a preset covers the hardware). Task 16: when
-/// exactly one standalone sensor exists in that case, auto-configure it as the
-/// runout sensor before we pass over the step.
+/// Configures the one standalone sensor as the runout sensor when the
+/// filament-sensor step is skipped for having too few sensors. A preset that
+/// skips the hardware, or a step that will be shown, configures nothing.
 static void ui_wizard_maybe_auto_configure_single_sensor(const helix::wizard::StepContext& ctx) {
     if (ctx.preset.skip_hardware) {
         return; // Skipped due to preset, not sparse sensors — do not auto-configure.
@@ -1222,7 +1207,6 @@ static void on_next_clicked(lv_event_t* e) {
     auto ctx = helix::wizard::build_context();
     auto skips = helix::wizard::skip_vector(ctx);
 
-    // Check if this is the last step (no more non-skipped steps after this)
     if (helix::wizard_is_last(current, skips)) {
         spdlog::info("[Wizard] Finish button clicked, completing wizard");
         ui_wizard_complete();
@@ -1269,7 +1253,7 @@ static void on_next_clicked(lv_event_t* e) {
         }
     }
 
-    // Task 16: if the forward jump passes OVER a sparse-skipped filament step,
+    // If the forward jump passes OVER a sparse-skipped filament step,
     // auto-configure a lone standalone sensor as RUNOUT before we move on.
     // wizard_next already excluded the (skipped) filament step from *next, so
     // detect the pass-over by index range [current, next).

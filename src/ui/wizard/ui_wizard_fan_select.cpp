@@ -69,7 +69,6 @@ void WizardFanSelectStep::init_subjects() {
     // Each visit re-initializes; drop the previous visit's subjects and names first.
     subjects_.deinit_all();
 
-    // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
     helix::ui::wizard::init_int_subject(subjects_, hotend_fan_selected_, 0, "hotend_fan_selected");
     helix::ui::wizard::init_int_subject(subjects_, part_fan_selected_, 0, "part_fan_selected");
@@ -153,7 +152,6 @@ static void on_exhaust_fan_dropdown_changed(lv_event_t* e) {
 // ============================================================================
 
 void WizardFanSelectStep::register_callbacks() {
-    // Register XML event callbacks for dropdown value changes
     lv_xml_register_event_cb(nullptr, "on_hotend_fan_dropdown_changed",
                              on_hotend_fan_dropdown_changed);
     lv_xml_register_event_cb(nullptr, "on_part_fan_dropdown_changed", on_part_fan_dropdown_changed);
@@ -178,7 +176,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         screen_root_ = nullptr; // Reset pointer, wizard framework handles deletion
     }
 
-    // Create screen from XML
     screen_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_fan_select", nullptr));
     if (!screen_root_) {
         LOG_ERROR_INTERNAL("[{}] Failed to create screen from XML", get_name());
@@ -186,10 +183,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Get Moonraker API for hardware discovery
     IMoonrakerAPI* api = get_moonraker_api();
 
-    // Build hotend fan options with custom filter (heater_fan OR hotend_fan)
     hotend_fan_items_.clear();
     if (api) {
         const auto& fans = api->hardware().fans();
@@ -201,7 +196,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         }
     }
 
-    // Build dropdown options string with "None" option and friendly display names
     std::string hotend_options_str = helix::ui::wizard::build_dropdown_options(
         hotend_fan_items_, nullptr, true,
         helix::ui::wizard::display_name_for(helix::DeviceType::FAN));
@@ -209,7 +203,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     // Add "None" FIRST in items vector to match dropdown order
     hotend_fan_items_.insert(hotend_fan_items_.begin(), "None");
 
-    // Build part cooling fan options with custom filter (has "fan" but NOT heater/hotend)
     part_fan_items_.clear();
     if (api) {
         const auto& fans = api->hardware().fans();
@@ -222,7 +215,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         }
     }
 
-    // Build dropdown options string with "None" option and friendly display names
     std::string part_options_str = helix::ui::wizard::build_dropdown_options(
         part_fan_items_, nullptr, true,
         helix::ui::wizard::display_name_for(helix::DeviceType::FAN));
@@ -230,14 +222,12 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     // Add "None" FIRST in items vector to match dropdown order
     part_fan_items_.insert(part_fan_items_.begin(), "None");
 
-    // Create PrinterHardware for guessing
     std::unique_ptr<PrinterHardware> hw;
     if (api) {
         hw = std::make_unique<PrinterHardware>(api->hardware().heaters(), api->hardware().sensors(),
                                                api->hardware().fans(), api->hardware().leds());
     }
 
-    // Find and configure hotend fan dropdown
     // Event handler is wired via XML <event_cb>
     lv_obj_t* hotend_dropdown =
         helix::ui::find_required(screen_root_, "hotend_fan_dropdown", get_name());
@@ -249,7 +239,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
             "[Wizard Fan]");
     }
 
-    // Find and configure part fan dropdown
     // Event handler is wired via XML <event_cb>
     lv_obj_t* part_dropdown =
         helix::ui::find_required(screen_root_, "part_cooling_fan_dropdown", get_name());
@@ -260,7 +249,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
             [](const PrinterHardware& h) { return h.guess_part_cooling_fan(); }, "[Wizard Fan]");
     }
 
-    // Check if we should show optional fans row (only if > 2 fans discovered)
     size_t fan_count = api ? api->hardware().fans().size() : 0;
     bool show_optional_fans = fan_count > 2;
 
@@ -268,7 +256,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     if (!show_optional_fans) {
         spdlog::debug("[{}] Only {} fans, hiding optional fan row", get_name(), fan_count);
     } else {
-        // Build chamber fan options - show ALL fans
         chamber_fan_items_.clear();
         if (api) {
             const auto& fans = api->hardware().fans();
@@ -277,7 +264,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
             }
         }
 
-        // Build dropdown options string with "None" option and friendly display names
         std::string chamber_options_str = helix::ui::wizard::build_dropdown_options(
             chamber_fan_items_, nullptr, true,
             helix::ui::wizard::display_name_for(helix::DeviceType::FAN));
@@ -285,7 +271,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         // Add "None" FIRST in items vector to match dropdown order
         chamber_fan_items_.insert(chamber_fan_items_.begin(), "None");
 
-        // Build exhaust fan options - show ALL fans
         exhaust_fan_items_.clear();
         if (api) {
             const auto& fans = api->hardware().fans();
@@ -294,7 +279,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
             }
         }
 
-        // Build dropdown options string with "None" option and friendly display names
         std::string exhaust_options_str = helix::ui::wizard::build_dropdown_options(
             exhaust_fan_items_, nullptr, true,
             helix::ui::wizard::display_name_for(helix::DeviceType::FAN));
@@ -302,7 +286,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         // Add "None" FIRST in items vector to match dropdown order
         exhaust_fan_items_.insert(exhaust_fan_items_.begin(), "None");
 
-        // Find and configure chamber fan dropdown
         lv_obj_t* chamber_dropdown =
             helix::ui::find_required(screen_root_, "chamber_fan_dropdown", get_name());
         if (chamber_dropdown) {
@@ -313,7 +296,6 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
                 [](const PrinterHardware& h) { return h.guess_chamber_fan(); }, "[Wizard Fan]");
         }
 
-        // Find and configure exhaust fan dropdown
         lv_obj_t* exhaust_dropdown =
             helix::ui::find_required(screen_root_, "exhaust_fan_dropdown", get_name());
         if (exhaust_dropdown) {
@@ -349,7 +331,6 @@ void WizardFanSelectStep::cleanup() {
     helix::ui::wizard::save_dropdown_selection(&part_fan_selected_, part_fan_items_,
                                                helix::wizard::PART_FAN, "[Wizard Fan]");
 
-    // Save optional fan selections if they were populated
     if (!chamber_fan_items_.empty()) {
         helix::ui::wizard::save_dropdown_selection(&chamber_fan_selected_, chamber_fan_items_,
                                                    helix::wizard::CHAMBER_FAN, "[Wizard Fan]");
@@ -360,7 +341,6 @@ void WizardFanSelectStep::cleanup() {
                                                    helix::wizard::EXHAUST_FAN, "[Wizard Fan]");
     }
 
-    // Persist to disk
     Config* config = Config::get_instance();
     if (!config->save()) {
         NOTIFY_ERROR(lv_tr("Failed to save fan configuration"));
@@ -369,7 +349,6 @@ void WizardFanSelectStep::cleanup() {
     // Reset Next button state to enabled for other wizard steps
     lv_subject_set_int(&connection_test_passed, 1);
 
-    // Reset UI references
     // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
@@ -395,7 +374,6 @@ bool WizardFanSelectStep::is_validated() const {
     add_if_valid(const_cast<lv_subject_t*>(&hotend_fan_selected_), hotend_fan_items_);
     add_if_valid(const_cast<lv_subject_t*>(&part_fan_selected_), part_fan_items_);
 
-    // Only check chamber/exhaust if they were populated
     if (!chamber_fan_items_.empty()) {
         add_if_valid(const_cast<lv_subject_t*>(&chamber_fan_selected_), chamber_fan_items_);
     }
@@ -403,7 +381,6 @@ bool WizardFanSelectStep::is_validated() const {
         add_if_valid(const_cast<lv_subject_t*>(&exhaust_fan_selected_), exhaust_fan_items_);
     }
 
-    // Check for duplicates
     std::set<std::string> unique(selected.begin(), selected.end());
     bool no_duplicates = unique.size() == selected.size();
 

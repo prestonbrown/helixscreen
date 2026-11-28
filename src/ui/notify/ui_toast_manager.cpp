@@ -101,7 +101,7 @@ static void severity_to_icon(ToastSeverity s, const char*& glyph, const char*& c
         break;
     }
     if (!glyph)
-        glyph = ""; // paranoia
+        glyph = "";
 }
 
 // Read an integer spacing constant from globals.xml (e.g. space_sm). Falls

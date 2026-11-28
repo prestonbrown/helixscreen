@@ -15,14 +15,11 @@ NotificationHistory& NotificationHistory::instance() {
 void NotificationHistory::add(const NotificationHistoryEntry& entry) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Reserve space if needed
     if (entries_.empty()) {
         entries_.reserve(MAX_ENTRIES);
     }
 
-    // Add entry to circular buffer
     if (entries_.size() < MAX_ENTRIES) {
-        // Buffer not full yet - just append
         entries_.push_back(entry);
         // head_index_ tracks next write position (wraps to 0 when at capacity)
         head_index_ = entries_.size() % MAX_ENTRIES;
@@ -144,11 +141,9 @@ uint64_t NotificationHistory::version() const {
 }
 
 void NotificationHistory::seed_test_data() {
-    // Add test notifications with varied severities and timestamps
     // Timestamps are offset from current tick to simulate "time ago" display
     uint64_t now = lv_tick_get();
 
-    // Error from 2 hours ago
     NotificationHistoryEntry error_entry = {};
     error_entry.timestamp_ms = now - (2 * 60 * 60 * 1000); // 2 hours ago
     error_entry.severity = ToastSeverity::ERROR;
@@ -159,7 +154,6 @@ void NotificationHistory::seed_test_data() {
     error_entry.was_read = false;
     add(error_entry);
 
-    // Warning from 45 minutes ago
     NotificationHistoryEntry warning_entry = {};
     warning_entry.timestamp_ms = now - (45 * 60 * 1000); // 45 min ago
     warning_entry.severity = ToastSeverity::WARNING;
@@ -171,7 +165,6 @@ void NotificationHistory::seed_test_data() {
     add(warning_entry);
 
     // Untitled entries are what plain toasts record, the most common kind
-    // Success from 20 minutes ago
     NotificationHistoryEntry success_entry = {};
     success_entry.timestamp_ms = now - (20 * 60 * 1000); // 20 min ago
     success_entry.severity = ToastSeverity::SUCCESS;
@@ -181,7 +174,6 @@ void NotificationHistory::seed_test_data() {
     success_entry.was_read = false;
     add(success_entry);
 
-    // Info from 5 minutes ago
     NotificationHistoryEntry info_entry = {};
     info_entry.timestamp_ms = now - (5 * 60 * 1000); // 5 min ago
     info_entry.severity = ToastSeverity::INFO;
@@ -192,7 +184,6 @@ void NotificationHistory::seed_test_data() {
     info_entry.was_read = false;
     add(info_entry);
 
-    // Another warning from just now
     NotificationHistoryEntry warning2_entry = {};
     warning2_entry.timestamp_ms = now - (30 * 1000); // 30 sec ago
     warning2_entry.severity = ToastSeverity::WARNING;
