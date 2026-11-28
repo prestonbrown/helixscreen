@@ -62,3 +62,12 @@ EOF
     run python3 $GATE --root "$ROOT"
     [ "$status" -eq 0 ]
 }
+
+@test "qc_xml_create_registered is wired in and wakes on a change under ui_xml/, where the names it reads live" {
+    grep -q ' qc_xml_create_registered ' "$BATS_TEST_DIRNAME/../../scripts/quality-checks.sh"
+    run qc_trigger xml_create_registered
+    [ "$status" -eq 0 ]
+    [[ "src/ui/panel.cpp" =~ $output ]] || fail "the trigger misses src/"
+    [[ "scripts/check_source_rules.py" =~ $output ]] || fail "the trigger misses the rules script"
+    [[ "ui_xml/components/demo_row.xml" =~ $output ]] || fail "the trigger misses a component file"
+}

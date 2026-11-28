@@ -31,4 +31,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_xml_create_registered='^src/|^scripts/check_source_rules\.py$'
+QC_TRIGGER_qc_xml_create_registered='^src/|^ui_xml/|^scripts/check_source_rules\.py$'

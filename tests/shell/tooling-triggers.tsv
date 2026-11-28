@@ -232,7 +232,7 @@ tests/shell/test_workflow_submodules_gate.bats	.github/actions/ .github/workflow
 tests/shell/test_worktree_setup.bats	Makefile lib/helix-xml lib/libhv lib/lua lib/lvgl lib/spdlog mk/patches.mk patches/ scripts/ccache-shared-config.sh scripts/check_patch_markers.py scripts/gen_patch_markers.py scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/worktree_lib.sh scripts/setup-worktree.sh scripts/sync-worktree-mtimes.py server/telemetry-worker/package.json
 tests/shell/test_x11_macro_collisions_gate.bats	scripts/check_x11_macro_collisions.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
-tests/shell/test_xml_create_registered_gate.bats	scripts/check_source_rules.py
+tests/shell/test_xml_create_registered_gate.bats	scripts/check_source_rules.py scripts/qc/xml_create_registered.sh scripts/quality-checks.sh
 tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh
 tests/shell/test_xml_schema_staleness_gate.bats	Makefile assets/config/themes/defaults/ include/printer_state.h lib/helix-xml mk/tools.mk scripts/qc/_lib.sh scripts/qc/xml_linter.sh src/ui/components/ui_switch.cpp tools/xml-linter/schema/extract_schema.py tools/xml-linter/schema/schema.json ui_xml/globals.xml
 tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_tools.sh scripts/quality-checks.sh tests/unit/test_ui_theme_constants.cpp
