@@ -160,7 +160,10 @@ class ALSASoundBackend : public SoundBackend {
     // External render source (tracker PCM playback)
     helix::audio::RenderSourceSlot render_source_;
 
-    // Filter for external render source (tracker) — shared, not per-voice
+    // Filter for external render source (tracker), shared, not per-voice.
+    // filter_mutex_ orders set_filter()'s writes against the apply on the
+    // render thread, and is never held across a render source call.
+    std::mutex filter_mutex_;
     std::atomic<helix::audio::FilterType> filter_type_{helix::audio::FilterType::NONE};
     std::atomic<float> filter_cutoff_{20000.0f};
     helix::audio::BiquadFilter filter_;

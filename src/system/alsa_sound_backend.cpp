@@ -282,6 +282,7 @@ void ALSASoundBackend::clear_render_source() {
 void ALSASoundBackend::set_filter(const std::string& type, float cutoff) {
     // Shared filter for external render source (tracker PCM).
     // Synth voices use per-voice filter in VoiceSlot.
+    std::lock_guard<std::mutex> lock(filter_mutex_);
     if (type.empty()) {
         filter_type_.store(helix::audio::FilterType::NONE, std::memory_order_relaxed);
         return;
@@ -406,6 +407,7 @@ void ALSASoundBackend::render_loop() {
         // a copy under no mutex, so a waiting clear is not starved.
         if (render_source_.call(mix_buf_.data(), frames, static_cast<int>(sample_rate_))) {
             // Apply shared filter for tracker output
+            std::lock_guard<std::mutex> lock(filter_mutex_);
             auto ft = filter_type_.load(std::memory_order_acquire);
             if (ft != helix::audio::FilterType::NONE) {
                 float cutoff = filter_cutoff_.load(std::memory_order_relaxed);

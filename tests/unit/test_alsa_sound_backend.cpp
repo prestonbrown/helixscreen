@@ -283,6 +283,34 @@ TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flig
     backend.shutdown();
 }
 
+// set_filter() runs on its caller's thread while the render thread applies
+// the filter to the tracker's output. A plain build cannot show that race;
+// this case is for ThreadSanitizer, which reports one on a filter nothing
+// orders.
+TEST_CASE("ALSASoundBackend::set_filter while a source renders leaves the render thread running",
+          "[sound][alsa][filter]") {
+    ALSASoundBackend backend;
+    REQUIRE(backend.initialize("null"));
+    backend.set_render_source([](float* buf, size_t frames, int) {
+        for (size_t i = 0; i < frames; ++i) {
+            buf[i] = 0.25f;
+        }
+    });
+
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    while (std::chrono::steady_clock::now() < until) {
+        backend.set_filter("lowpass", 1000.0f);
+        backend.set_filter("highpass", 500.0f);
+        backend.set_filter("", 0.0f);
+    }
+
+    // A filter change never parked the render thread.
+    CHECK_FALSE(backend.is_parked());
+
+    backend.clear_render_source();
+    backend.shutdown();
+}
+
 // ============================================================================
 // Short sounds vs the ALSA start threshold (prestonbrown/helixscreen#1337)
 //
