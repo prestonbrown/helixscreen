@@ -21,8 +21,9 @@
  * 800x480.
  *
  * The strip's time line (print_status_strip.xml) has the same class of
- * hazard: its eta grows and dots, so a long elapsed/remaining pair shrinks it
- * instead of pushing the elapsed time past the progress block.
+ * hazard: the times sit at the line's right edge, and the finish time takes
+ * only what the other times leave and dots, so a long elapsed/remaining pair
+ * shrinks it instead of pushing the elapsed time past the progress block.
  */
 
 #include "ui_panel_print_status.h"
@@ -41,6 +42,7 @@ using helix::ui::UpdateQueue;
 #include <cstdlib>
 #include <lvgl.h>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -65,6 +67,11 @@ struct MetadataStripFixture : public LVGLUITestFixture {
     }
 
     ~MetadataStripFixture() override {
+        if (eta_saved_) {
+            if (lv_subject_t* subject = lv_xml_get_subject(nullptr, "print_eta")) {
+                lv_subject_copy_string(subject, saved_eta_.c_str());
+            }
+        }
         if (root_ && lv_obj_is_valid(root_)) {
             lv_obj_delete(root_);
         }
@@ -115,6 +122,20 @@ struct MetadataStripFixture : public LVGLUITestFixture {
         return a;
     }
 
+    /// The finish time is shown by a label and measured by an invisible copy,
+    /// both bound to print_eta, so a case sets the subject, not one label.
+    /// The fixture puts the original back.
+    void set_eta(const char* text) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, "print_eta");
+        REQUIRE(subject != nullptr);
+        if (!eta_saved_) {
+            const char* now = lv_subject_get_string(subject);
+            saved_eta_ = now ? now : "";
+            eta_saved_ = true;
+        }
+        lv_subject_copy_string(subject, text);
+    }
+
     void heal_global_print_status_panel_subjects() {
         auto& global = get_global_print_status_panel();
         if (!global.are_subjects_initialized()) {
@@ -124,6 +145,8 @@ struct MetadataStripFixture : public LVGLUITestFixture {
 
     std::unique_ptr<PrintStatusPanel> panel_;
     lv_obj_t* root_ = nullptr;
+    std::string saved_eta_;
+    bool eta_saved_ = false;
 };
 
 } // namespace
@@ -187,7 +210,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
 
     lv_label_set_text(elapsed, "2d 16h 03m");
     lv_label_set_text(remaining, "2d 08h 26m");
-    lv_label_set_text(eta, "(~10:06 PM +1d)");
+    set_eta("(~10:06 PM +1d)");
 
     lv_obj_update_layout(root_);
 
@@ -198,6 +221,7 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // time ends inside the line.
     REQUIRE(right_edge_screen(eta) <= left_edge_screen(elapsed));
     REQUIRE(right_edge_screen(elapsed) <= right_edge_screen(line));
+    CHECK(lv_obj_get_width(eta) < lv_obj_get_width(label("print_eta_measure")));
 }
 
 TEST_CASE_METHOD(MetadataStripFixture,
@@ -238,21 +262,40 @@ TEST_CASE_METHOD(MetadataStripFixture,
     CHECK_FALSE(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
     CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
+    // The times hug the right edge: a shorter finish time moves the time-left
+    // clock rightward instead of leaving a gap before elapsed.
+    {
+        lv_obj_t* clock = label("remaining_icon");
+        set_eta("(~10:06 PM)");
+        lv_obj_update_layout(root_);
+        const int32_t clock_long = left_edge_screen(clock);
+        set_eta("(~1 PM)");
+        lv_obj_update_layout(root_);
+        CAPTURE(clock_long, left_edge_screen(clock));
+        CHECK(left_edge_screen(clock) > clock_long);
+        CHECK(right_edge_screen(elapsed) == right_edge_screen(line));
+        // A finish time that fits shows whole, after it shrinks and after it
+        // grows again: no dots while the line has room.
+        lv_obj_t* measure = label("print_eta_measure");
+        CHECK(lv_obj_get_width(eta) == lv_obj_get_width(measure));
+        set_eta("(~10:06 PM)");
+        lv_obj_update_layout(root_);
+        CAPTURE(lv_obj_get_width(eta), lv_obj_get_width(measure));
+        CHECK(lv_obj_get_width(eta) == lv_obj_get_width(measure));
+        CHECK(left_edge_screen(clock) == clock_long);
+    }
     const int32_t count_width_medium = lv_obj_get_width(count);
-    const int32_t percent_width_medium = lv_obj_get_width(percent);
 
     for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
         lv_subject_set_int(breakpoint, to_int(cramped));
         lv_obj_update_layout(root_);
-        CAPTURE(to_int(cramped), count_width_medium, lv_obj_get_width(count), percent_width_medium,
+        CAPTURE(to_int(cramped), count_width_medium, lv_obj_get_width(count),
                 lv_obj_get_width(percent));
         CHECK(lv_obj_has_flag(filament, LV_OBJ_FLAG_HIDDEN));
         CHECK(lv_obj_has_flag(elapsed_icon, LV_OBJ_FLAG_HIDDEN));
         CHECK(lv_obj_has_flag(elapsed, LV_OBJ_FLAG_HIDDEN));
         CHECK(lv_obj_get_width(count) > count_width_medium);
-        // The spare width sits after the percent, so the times end at the
-        // line's right edge.
-        CHECK(lv_obj_get_width(percent) > percent_width_medium);
+        // With elapsed hidden the finish time ends the line.
         CHECK(right_edge_screen(eta) == right_edge_screen(line));
 
         // The corner toggle draws smaller and nearer the corner, and still
