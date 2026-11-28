@@ -596,7 +596,10 @@ edit_an_applied_patch() {
     # separately rather than pinning one formatting of the command.
     grep -q 'HELIX_QC_SKIP_PATCH_DRIFT=1' .githooks/pre-push
     grep -q './scripts/quality-checks.sh' .githooks/pre-push
-    [ "$(grep -c 'prepush_patch_drift "$REPO_ROOT"' .githooks/pre-push)" -eq 2 ]
+    # A push that sweeps asks twice, in place and again after the isolated sweep.
+    # A work-branch push sweeps nothing and asks drift once more, for itself.
+    [ "$(grep -cF 'prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1' .githooks/pre-push)" -eq 2 ]
+    [ "$(grep -c 'prepush_patch_drift "$REPO_ROOT"' .githooks/pre-push)" -eq 3 ]
     grep -q 'cd "$tree" && python3 scripts/check_patch_drift.py' .githooks/lib/push-range.sh
 }
 
