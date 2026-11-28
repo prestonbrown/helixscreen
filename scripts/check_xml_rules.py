@@ -15,8 +15,7 @@ keeps its own section below with its reason, scope and marker.
                             skips ui_xml/translations/ and
                             ui_xml/header_action.xml)
   overlay-width             XML naming a navigation width class, which push time
-                            decides (#1178) (no marker; a --staged-only run
-                            reads the staged blobs)
+                            decides (#1178) (no marker)
   icon-names                an <icon src="NAME"> absent from
                             include/ui_icon_codepoints.h
   responsive-token-scope    a responsive token declared below the top level of
@@ -31,8 +30,6 @@ Usage:
   check_xml_rules.py                                  # every rule
   check_xml_rules.py --rule NAME [--rule NAME ...]    # the named rules only
   check_xml_rules.py --root DIR ...                   # resolve the tree under DIR
-  check_xml_rules.py --staged-only ...                # overlay-width reads the
-                                                      # staged XML blobs
   check_xml_rules.py --list ...                       # icon-names lists every
                                                       # scanned reference
   check_xml_rules.py --rule overlay-width FILE...     # those files, not ui_xml/
@@ -54,9 +51,8 @@ rule; a relative one resolves under the tree.
 Without --root the tree is the one its gate runs from: the repository holding
 the current directory for overlay-width, responsive-token-scope and
 shipped-spacing-tokens, the current directory for modal-chrome-budget, and the
-repository this script is in for header-actions and icon-names. --staged-only
-reads the index of the repository holding the current directory, so it takes no
---root.
+repository this script is in for header-actions and icon-names. At a commit its
+gate writes the XML from the index to a scratch tree and names that with --root.
 
 Exit 0 when every rule that ran passes, 1 when one fails, and 2 when
 icon-names is the only failure and found no <icon> tag at all: its pattern has
@@ -78,7 +74,6 @@ from pathlib import Path
 
 from path_scope import in_skipped_dir
 from source_strip import blank_cxx, blank_xml_comments
-from staged_content import staged_files
 
 SCRIPT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -271,7 +266,6 @@ class Run:
         self,
         root_override: Optional[Path],
         given: list[str],
-        staged: bool,
         list_mode: bool,
         ui_xml: Optional[str] = None,
         src: Optional[list[str]] = None,
@@ -280,7 +274,6 @@ class Run:
         self.root_override = root_override
         # FILE arguments, as typed.
         self.given = given
-        self.staged = staged
         self.list_mode = list_mode
         self.ui_xml = ui_xml
         self.src = src or []
@@ -539,10 +532,8 @@ def header_actions(run: Run) -> int:
 #     overwrite the width it chose.
 #
 # Scope is every *.xml under ui_xml/ outside the copied trees, in the
-# repository holding the current directory. A --staged-only run reads the
-# staged *.xml blobs of that repository's index instead, for what the commit
-# will contain. FILE arguments are the files named. A file that cannot be read
-# is passed over.
+# repository holding the current directory. FILE arguments are the files named.
+# A file that cannot be read is passed over.
 DESTINATION_CONST = "overlay_width_destination"
 
 # <foo ... extends="overlay_panel" ...> spanning newlines, up to the closing >
@@ -563,13 +554,6 @@ def overlay_width_sources(run: Run) -> list[tuple[str, str]]:
             if text is not None:
                 out.append((f, text))
         return out
-
-    if run.staged:
-        return [
-            (path, text)
-            for path, text in staged_files(suffixes=(".xml",))
-            if not in_skipped_dir(path, ".", COPIED_TREES)
-        ]
 
     files = run.xml(RULES["overlay-width"])
     out = []
@@ -1462,11 +1446,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--rule", dest="rules", action="append", choices=list(RULES), help="run only this rule"
     )
     ap.add_argument(
-        "--staged-only",
-        action="store_true",
-        help="overlay-width reads the staged XML blobs of the repository the command runs in",
-    )
-    ap.add_argument(
         "--list", action="store_true", help="icon-names also lists every scanned reference"
     )
     ap.add_argument(
@@ -1494,13 +1473,10 @@ def main(argv: Optional[list[str]] = None) -> int:
             ap.error(f"FILE arguments do not apply to rule(s): {', '.join(not_for)}")
     if (args.ui_xml or args.src or args.cross_mk) and "shipped-spacing-tokens" not in names:
         ap.error("--ui-xml, --src and --cross-mk apply to shipped-spacing-tokens only")
-    if args.staged_only and args.root:
-        ap.error("--staged-only reads the index of the repository the command runs in; no --root")
 
     run = Run(
         args.root.resolve() if args.root else None,
         args.files,
-        args.staged_only,
         args.list,
         args.ui_xml,
         args.src or [],

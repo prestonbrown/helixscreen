@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+int a;
+<<<<<<< HEAD
+int ours;
+=======
+int theirs;
+>>>>>>> other

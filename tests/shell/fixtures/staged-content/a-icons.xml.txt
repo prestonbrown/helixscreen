@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<component>
+  <view>
+    <icon src="alert"/>
+  </view>
+</component>

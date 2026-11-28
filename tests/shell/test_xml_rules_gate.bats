@@ -3,7 +3,7 @@
 #
 # The table of scripts/check_xml_rules.py and its gate, qc_xml_rules
 # (scripts/qc/xml_rules.sh): which rules a run selects, that a run opens each
-# ui_xml file once, what a commit's --staged-only reads, and what the gate
+# ui_xml file once, what a commit's gate reads, and what the gate
 # prints and exits with. What each rule finds is pinned in its own file,
 # tests/shell/test_<rule>_gate.bats.
 
@@ -214,8 +214,7 @@ run_gate() {
 }
 
 # A commit stages what it will contain; the working tree can hold anything.
-# --staged-only answers for overlay-width from the index and for every other
-# rule from the working tree, as the gates it replaces did.
+# The gate's commit mode answers from the index, for the rules it runs.
 staged_repo() {
     local repo="$BATS_TEST_TMPDIR/repo"
     mkdir -p "$repo/ui_xml" "$repo/include" "$repo/mk" "$repo/scripts"
@@ -226,7 +225,8 @@ staged_repo() {
     git -C "$repo" config user.email t@t
     git -C "$repo" config user.name t
     printf '%s\n' "$1" > "$repo/ui_xml/overlay.xml"
-    git -C "$repo" add ui_xml/overlay.xml
+    # Everything the gate writes from the index at a commit has to be in it.
+    git -C "$repo" add -A
     printf '%s\n' "$2" > "$repo/ui_xml/overlay.xml"
 }
 
@@ -234,7 +234,7 @@ CLEAN_OVERLAY='<component><view name="x" extends="overlay_panel" title="X"><icon
 BAD_OVERLAY='<component><view name="x" extends="overlay_panel" width="#overlay_width_destination"><icon src="alert"/></view></component>'
 HEADER_OFFENDER='<component><view><header_bar-actions><ui_button name="btn"/></header_bar-actions></view></component>'
 
-@test "at a commit the gate reads the staged blobs for overlay-width and the tree for every other rule" {
+@test "at a commit the gate reads the XML as the commit will hold it, and leaves shipped-spacing-tokens to the full sweep" {
     local REPO_TREE="$BATS_TEST_TMPDIR/repo"
     run staged_repo "$BAD_OVERLAY" "$CLEAN_OVERLAY"
     [ "$status" -eq 0 ] || fail "$output"
@@ -249,11 +249,18 @@ HEADER_OFFENDER='<component><view><header_bar-actions><ui_button name="btn"/></h
     [ "$status" -eq 0 ] || fail "a violation that is only on disk reached overlay-width: $output"
     lacks "Run:" "$output"
 
+    # header-actions answers from the index at a commit, whatever the working copy holds.
+    printf '%s\n' "$CLEAN_OVERLAY" > "$REPO_TREE/ui_xml/overlay.xml"
     printf '%s\n' "$HEADER_OFFENDER" > "$REPO_TREE/ui_xml/panel.xml"
+    git -C "$REPO_TREE" add ui_xml/panel.xml
+    printf '%s\n' '<component><view><icon src="alert"/></view></component>' > "$REPO_TREE/ui_xml/panel.xml"
     run_gate "$REPO_TREE" true
-    [ "$status" -eq 1 ] || fail "header-actions did not read the working tree: $output"
+    [ "$status" -eq 1 ] || fail "header-actions did not read the staged content: $output"
     contains "Run: python3 scripts/check_xml_rules.py --rule header-actions --list" "$output"
     lacks "Run: python3 scripts/check_xml_rules.py --rule overlay-width --list" "$output"
+
+    # The rule whose callers are every C++ file is not a commit's.
+    lacks "Checking spacing tokens ship in a release" "$output"
 }
 
 @test "qc_xml_rules prints each rule's pass line and passes" {

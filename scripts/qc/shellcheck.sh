@@ -103,13 +103,16 @@ if [ -n "$SHELL_FILES" ]; then
     < "$SC_DIR/files" xargs -P "${QC_JOBS:-4}" -I{} sh -c '
       f="$1"
       out="$2/$(printf "%s" "$f" | tr "/" "_")"
-      if [ ! -f "$f" ]; then : > "$out.skip"; exit 0; fi
+      # A commit lints the staged content: $4 holds the copies, empty otherwise.
+      r="$f"
+      [ -z "$4" ] || r="$4/$f"
+      if [ ! -f "$r" ]; then : > "$out.skip"; exit 0; fi
       case "$f" in
         scripts/*|config/restore-user-config.sh|config/refresh-service-units.sh|config/fix-user-config-owner.sh) flags="-S warning -e $3" ;;
         *)         flags="" ;;
       esac
-      shellcheck $flags "$f" > "$out.out" 2>/dev/null || : > "$out.bad"
-    ' _ {} "$SC_DIR" "$SHELLCHECK_SCRIPTS_EXCLUDE"
+      shellcheck $flags "$r" > "$out.out" 2>/dev/null || : > "$out.bad"
+    ' _ {} "$SC_DIR" "$SHELLCHECK_SCRIPTS_EXCLUDE" "$QC_STAGED_DIR"
     SHELL_EXAMINED=$(find "$SC_DIR" \( -name '*.out' -o -name '*.skip' \) | wc -l | tr -d ' ')
     for script in $SHELL_FILES; do
       sc_stem="$SC_DIR/$(printf '%s' "$script" | tr '/' '_')"

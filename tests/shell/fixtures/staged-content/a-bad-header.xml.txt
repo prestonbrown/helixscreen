@@ -1,0 +1,1 @@
+<component><view><header_bar-actions><ui_button name="btn"/></header_bar-actions></view></component>

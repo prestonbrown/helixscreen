@@ -46,6 +46,15 @@ SCRIPT_START=$(date +%s)
 # shellcheck source=scripts/qc/_lib.sh
 . scripts/qc/_lib.sh
 
+# Scratch space for this run: the gates' buffered output and, at a commit, the
+# staged content the per-file gates read (QC_STAGED_DIR, scripts/qc/_lib.sh).
+QC_TMP="$(mktemp -d)"
+if [ "$STAGED_ONLY" = true ]; then
+  QC_STAGED_DIR="$QC_TMP/staged"
+  qc_export_staged "$QC_STAGED_DIR"
+fi
+trap 'rm -rf "$QC_TMP"' EXIT
+
 echo "🔍 Running quality checks..."
 if [ "$STAGED_ONLY" = true ]; then
   echo "   Mode: Staged files only (pre-commit)"
@@ -174,8 +183,6 @@ if [ "$STAGED_ONLY" != true ] && [ -z "${QC_NO_CACHE:-}" ]; then
   QC_STAMP="$(qc_stamp_for_run "$QC_STAMP_FULL")"
 fi
 
-QC_TMP="$(mktemp -d)"
-trap 'rm -rf "$QC_TMP"' EXIT
 # Verdicts that carry a count are recorded here as well as printed, so a cached
 # pass can replay what the full run examined. Gates run in parallel subshells,
 # and a one-line append is atomic, so one file serves them all.

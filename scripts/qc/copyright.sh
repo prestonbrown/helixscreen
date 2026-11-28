@@ -47,8 +47,10 @@ fi
 if [ -n "$FILES" ]; then
   MISSING_HEADERS=""
   for file in $FILES; do
-    if [ -f "$file" ]; then
-      if ! head -3 "$file" | grep -q "SPDX-License-Identifier: GPL-3.0-or-later"; then
+    # At a commit the staged content; in a full sweep the working tree.
+    qc_file="$(qc_read_path "$file")"
+    if [ -f "$qc_file" ]; then
+      if ! head -3 "$qc_file" | grep -q "SPDX-License-Identifier: GPL-3.0-or-later"; then
         echo "❌ Missing GPL v3 header: $file"
         MISSING_HEADERS="$MISSING_HEADERS $file"
         EXIT_CODE=1

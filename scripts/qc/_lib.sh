@@ -71,6 +71,66 @@ qc_one_includer() {
 qc_note() { printf '%s\n' "$1" >> "$QC_COUNTS" 2>/dev/null || true; }
 qc_count() { echo "$1"; qc_note "$1"; }
 
+# Under --staged-only the driver copies each staged file's content, as the
+# commit will hold it, to QC_STAGED_DIR/<repository path>. A gate reads a staged
+# file through qc_read_path, never through the working tree: the two differ
+# whenever a file is partly staged or edited after it was staged, and the commit
+# is what is staged. Empty in a full sweep, where qc_read_path names the file.
+QC_STAGED_DIR=""
+
+qc_export_staged() {
+  # $1 = the directory to fill, every staged file under its repository path
+  mkdir -p "$1" || return 1
+  # A staged submodule pointer becomes an empty directory there; nothing reads it.
+  git diff --cached --name-only -z --diff-filter=ACMRT |
+    xargs -0 -r git checkout-index --prefix="$1/" -- >/dev/null 2>&1 || true
+}
+
+qc_read_path() {
+  # $1 = a repository path. Prints the file a gate reads for it.
+  if [ -n "$QC_STAGED_DIR" ]; then
+    printf '%s/%s\n' "$QC_STAGED_DIR" "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# Every file the index holds under the pathspecs, written to $1 under its
+# repository path: a gate that needs whole directories as the commit will hold
+# them reads them there. Named in hundreds of files, not thousands: the whole
+# index takes about a second. Whatever $1 held goes first: checkout-index never
+# overwrites a file, so a file the index no longer has would linger.
+qc_export_index_tree() {
+  local dir="$1"
+  shift
+  rm -rf "$dir" && mkdir -p "$dir" || return 1
+  git ls-files -z -- "$@" | xargs -0 -r git checkout-index --prefix="$dir/" -- >/dev/null 2>&1 || true
+}
+
+# Under --staged-only, makes the content of $2 the staged content of repository
+# path $1 and leaves the working tree alone. A repair of what is staged goes
+# through here: `git add` would take the whole working file, hunks its author
+# held back included. $1 has to be staged already.
+qc_stage_content() {
+  local mode
+  mode="$(git ls-files -s -- "$1" | awk 'NR == 1 { print $1 }')"
+  [ -n "$mode" ] || return 1
+  git update-index --cacheinfo "$mode,$(git hash-object -w --path="$1" -- "$2"),$1"
+}
+
+# xmllint --noout --recover on the content a gate reads for $1, its findings
+# named under the repository path: read from standard input, xmllint calls
+# the file "-".
+qc_xmllint() {
+  local read_file
+  read_file="$(qc_read_path "$1")"
+  if [ "$read_file" = "$1" ]; then
+    xmllint --noout --recover "$1" 2>&1
+  else
+    xmllint --noout --recover - < "$read_file" 2>&1 | sed "s|^-:|$1:|"
+  fi
+}
+
 # Path triggers more than one gate shares (see QC_TRIGGER_<gate> in each file).
 QC_TRIGGER_XML='\.xml$|^src/ui/|^tools/xml-linter/'
 QC_TRIGGER_NATIVE_SRC='\.(cpp|c|h|mm)$'
