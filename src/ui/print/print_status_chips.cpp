@@ -295,8 +295,10 @@ bool phase_budget_expendable(CalloutKind kind, bool printing) {
     return false;
 }
 
-bool heater_power_fits(CalloutMode mode, int w_with_power, int column_w) {
+bool heater_power_fits(CalloutMode mode, UiBreakpoint bp, int w_with_power, int column_w) {
     if (mode != CalloutMode::BothSides && mode != CalloutMode::OneSide)
+        return false;
+    if (bp <= UiBreakpoint::Tiny)
         return false;
     return w_with_power > 0 && w_with_power <= column_w;
 }

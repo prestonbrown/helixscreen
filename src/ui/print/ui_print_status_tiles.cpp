@@ -20,6 +20,7 @@
 #include "light_button_config.h"
 #include "lvgl.h"
 #include "moonraker_manager.h"
+#include "panel_widget_size.h"
 #include "plate_glow.h"
 #include "print_start_collector.h"
 #include "print_start_phase_label.h"
@@ -390,7 +391,8 @@ const ChipContent& heater_shown(const ChipContent& plain, const ChipContent& wit
                                 const CalloutChipMetrics& m, int icons, int column_w,
                                 CalloutMode mode) {
     if (with_power.text != plain.text &&
-        heater_power_fits(mode, m.chip_w(icons, with_power.text), column_w)) {
+        heater_power_fits(mode, widget_size::current_breakpoint(), m.chip_w(icons, with_power.text),
+                          column_w)) {
         return with_power;
     }
     return plain;

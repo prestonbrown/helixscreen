@@ -7,6 +7,7 @@
 #include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
+#include "core/breakpoint.h"
 #include "display_numbering.h"
 
 #include <functional>
@@ -152,7 +153,10 @@ struct OtherToolReading {
 /// Whether a heater chip carries its duty ("220° · 5%"). Only the line modes
 /// set chips beside the picture with a column of their own, and the duty goes
 /// on only while the chip, measured with it, still fits that column:
-/// `column_w` is the widest budget chip, which sized the column.
-[[nodiscard]] bool heater_power_fits(CalloutMode mode, int w_with_power, int column_w);
+/// `column_w` is the widest budget chip, which sized the column. Micro and
+/// tiny screens never carry it: there the reading and its status are all the
+/// chip has room to say.
+[[nodiscard]] bool heater_power_fits(CalloutMode mode, UiBreakpoint bp, int w_with_power,
+                                     int column_w);
 
 } // namespace helix
