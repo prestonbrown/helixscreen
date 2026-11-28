@@ -2119,7 +2119,7 @@ TEST_CASE("thumbnail header dimensions read like scanf's \"%dx%d\"", "[gcode][th
     CHECK(thumb_for("; thumbnail begin 48*32 100").png_data.empty());
     CHECK(thumb_for("; thumbnail begin x32 100").png_data.empty());
 
-    // Creality's "png begin" header separates the size with '*' and needs both
+    // The "png begin" header separates the size with '*' and needs both
     // sides positive.
     const auto creality = [&](const std::string& dims) {
         return get_best_thumbnail_from_content("; png begin " + dims + "\n; " + png_base64 +
