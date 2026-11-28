@@ -1007,7 +1007,8 @@ void WizardWifiStep::apply_wifi_backend_state() {
                 // guard + UI thread safety. Move the vector into the lambda so
                 // cached_networks_ is only written on the UI thread; otherwise
                 // a back-to-back scan callback on the BG thread could rewrite
-                // cached_networks_ while the UI thread is mid-sort (mirrors #769 fix at line 553).
+                // cached_networks_ while the UI thread is mid-sort (mirrors the #769 guard in
+                // handle_wifi_toggle_changed()).
                 token.defer("WizardWifiStep::apply_scan", [this, scanned = networks]() mutable {
                     if (cleanup_called_ || !screen_root_) {
                         crash_handler::breadcrumb::note("wifi", "scan_apply_skip");

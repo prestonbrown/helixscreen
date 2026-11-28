@@ -690,8 +690,9 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
             lv_subject_t* subject = lv_xml_get_subject(nullptr, value);
             if (subject && data && data->current_label) {
                 data->has_target_binding = true; // Mark as heater mode (not sensor-only)
-                // Use current_label as observer target (callback traverses to
-                // parent container to find data — works for any child label)
+                // Observe through the target label, or the current one when the
+                // display has no target label: the callback walks up to the parent
+                // container for the data, so any child label serves
                 lv_obj_t* obs_target =
                     data->target_label ? data->target_label : data->current_label;
                 lv_subject_add_observer_obj(subject, target_temp_observer_cb, obs_target, nullptr);

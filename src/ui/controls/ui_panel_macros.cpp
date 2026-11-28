@@ -228,8 +228,6 @@ void MacrosPanel::on_deactivating(DeactivateReason reason) {
     if (edit_mode_ && reason != DeactivateReason::Suspended) {
         exit_edit_mode(false);
     }
-
-    // Call base class (invalidates lifetime_)
 }
 
 void MacrosPanel::on_ui_destroyed() {

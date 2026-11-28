@@ -1154,10 +1154,9 @@ static void on_back_clicked(lv_event_t* e) {
     navigating = false;
 }
 
-/// True if the filament-sensor step is being skipped purely because of sparse
-/// standalone sensors (not because a preset covers the hardware). Task 16: when
-/// exactly one standalone sensor exists in that case, auto-configure it as the
-/// runout sensor before we pass over the step.
+/// Configures the one standalone sensor as the runout sensor when the
+/// filament-sensor step is skipped for having too few sensors. A preset that
+/// skips the hardware, or a step that will be shown, configures nothing.
 static void ui_wizard_maybe_auto_configure_single_sensor(const helix::wizard::StepContext& ctx) {
     if (ctx.preset.skip_hardware) {
         return; // Skipped due to preset, not sparse sensors — do not auto-configure.

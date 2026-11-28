@@ -7,8 +7,6 @@
  *
  * @pattern Auto-detects background thread context; marshals to main thread
  * @threading Safe from any thread - automatically defers via helix::ui::queue_update() when needed
- *
- * @see "Thread-safe:" comment in show() implementation
  */
 
 #include "ui_notification.h"
