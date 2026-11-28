@@ -12,7 +12,6 @@
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/toolchanger_test_helper.h"
-#include "../test_helpers/wizard_ams_identify_test_access.h"
 #include "ams_backend_indx.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -49,11 +48,22 @@ struct EmptyHeadIndx {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture, "AMS wizard names INDX by its display name",
+TEST_CASE_METHOD(LVGLUITestFixture, "AMS wizard names INDX by its display name",
                  "[ams][indx][wizard]") {
     EmptyHeadIndx indx;
     WizardAmsIdentifyStep step;
-    CHECK(helix::ui::WizardAmsIdentifyStepTestAccess::type_name(step) == "INDX");
+    step.init_subjects();
+    // The wizard's XML reads the type name from this subject, which the
+    // step fills when it builds its screen.
+    lv_subject_t* type = lv_xml_get_subject(nullptr, "wizard_ams_type");
+    REQUIRE(type != nullptr);
+    lv_obj_t* root = step.create(test_screen());
+    REQUIRE(root != nullptr);
+
+    CHECK(std::string(lv_subject_get_string(type)) == "INDX");
+
+    step.cleanup();
+    lv_obj_delete(root);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AMS wizard shows a logo only for a system with logo art",
