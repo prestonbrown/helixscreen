@@ -2,7 +2,8 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- One button in a screen's header: the only element header_bar's actions slot
-     takes (<header_bar-actions>, <overlay_panel-actions>; scripts/check_header_actions.py).
+     takes (<header_bar-actions>, <overlay_panel-actions>; the header-actions rule of
+     scripts/check_xml_rules.py).
      It owns the whole look, so every header button is the same height, shape and
      color scheme:
        - icon only: a circle, as wide as it is tall

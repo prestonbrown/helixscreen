@@ -12,8 +12,6 @@ setup() {
     REPO="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
     ROOT="$BATS_TEST_TMPDIR/tree"
     mkdir -p "$ROOT/src/ui" "$ROOT/include" "$ROOT/scripts"
-    # design_tokens runs the spacing-token checker as a child; the fixture has no tokens.
-    printf 'import sys\nsys.exit(0)\n' > "$ROOT/scripts/check_shipped_spacing_tokens.py"
 }
 
 # run_gate <gate file stem> <function>

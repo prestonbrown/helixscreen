@@ -6,8 +6,9 @@
        bed_mesh_panel.xml, not here — theme_manager_find_xml_files() only
        scans top-level ui_xml/*.xml for the auto-discovery that turns
        "_micro"/"_tiny"/... suffixed <px> entries into the responsive
-       #bed_mesh_profile_row_height token (check_responsive_token_scope.py
-       enforces this); a components/ subdirectory declaration is silently
+       #bed_mesh_profile_row_height token (the responsive-token-scope rule
+       of scripts/check_xml_rules.py enforces this); a components/
+       subdirectory declaration is silently
        invisible to it. The resulting token is still globally resolvable
        from here once declared there. -->
   <styles>

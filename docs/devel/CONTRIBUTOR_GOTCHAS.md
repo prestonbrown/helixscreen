@@ -291,7 +291,7 @@ Reference: lesson **L008**.
 
 **Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a component's `nav_width_small` would shadow the top-level token globally.
 
-Gate: `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
+Gate: the `responsive-token-scope` rule of `scripts/check_xml_rules.py` (prestonbrown/helixscreen#1211).
 
 ---
 

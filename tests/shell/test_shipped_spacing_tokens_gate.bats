@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_shipped_spacing_tokens.py — the gate on spacing
-# tokens that shipping code reads and a packaged release does not carry.
+# Meta-tests for the shipped-spacing-tokens rule of scripts/check_xml_rules.py,
+# the gate on spacing tokens that shipping code reads and a release does not carry.
 #
 # theme_manager_get_spacing("foo") resolves a const registered from the
 # foo_small/foo_medium/foo_large triplet found in the top level of ui_xml/. When
@@ -23,7 +23,7 @@
 
 load helpers
 
-GATE="scripts/check_shipped_spacing_tokens.py"
+GATE="scripts/check_xml_rules.py --rule shipped-spacing-tokens"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -43,7 +43,7 @@ cpp() {
 }
 
 run_gate() {
-    run python3 "$GATE" --ui-xml "$FIXTURE/ui_xml" --src "$FIXTURE/src" \
+    run python3 $GATE --ui-xml "$FIXTURE/ui_xml" --src "$FIXTURE/src" \
         --cross-mk "$FIXTURE/mk/cross.mk"
 }
 

@@ -36,8 +36,8 @@
     <slot name="header_content"/>
     <!-- The screen's own header buttons, at the right end: <header_bar-actions>
          (<overlay_panel-actions> in a view extending overlay_panel). Each is a
-         <header_action> (ui_xml/header_action.xml); scripts/check_header_actions.py
-         refuses anything else. -->
+         <header_action> (ui_xml/header_action.xml); the header-actions rule of
+         scripts/check_xml_rules.py refuses anything else. -->
     <slot name="actions" target="header_actions" hide_empty="true"/>
     <prop name="title" type="string"/>
     <prop name="title_tag" type="string" default=""/>

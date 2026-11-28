@@ -2,7 +2,7 @@
 # Copyright (C) 2025-2026 356C LLC
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_modal_chrome_budget.py (#1277).
+# Meta-tests for the modal-chrome-budget rule of scripts/check_xml_rules.py (#1277).
 #
 # Both halves of the contract are pinned: the shape it must catch (a pinned
 # block below the scroll area, which clips the button row off the card) and the
@@ -14,7 +14,7 @@ load helpers
 
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
-    GATE="${REPO_ROOT}/scripts/check_modal_chrome_budget.py"
+    GATE="${REPO_ROOT}/scripts/check_xml_rules.py --rule modal-chrome-budget"
     FIXTURE="$(mktemp -d)"
     mkdir -p "${FIXTURE}/ui_xml"
 }
@@ -36,7 +36,7 @@ teardown() {
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
     [[ "$output" == *"pinned_graphic"* ]] || [[ "$output" == *"bad_modal.xml"* ]]
 }
@@ -54,7 +54,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
 }
 
@@ -72,7 +72,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
     [[ "$output" == *"two_rows"* ]]
 }
@@ -89,7 +89,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
     [[ "$output" == *"90%"* ]]
 }
@@ -106,7 +106,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -124,7 +124,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -141,7 +141,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
 }
 
@@ -156,7 +156,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -178,7 +178,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -191,7 +191,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -207,7 +207,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -223,7 +223,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 1 ]
 }
 
@@ -241,7 +241,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -257,7 +257,7 @@ EOF
   </view>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -266,7 +266,7 @@ EOF
 <component>
   <view name="broken"
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -276,7 +276,7 @@ EOF
   <view name="plain" extends="lv_obj"/>
 </component>
 EOF
-    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    run python3 ${GATE} --root "${FIXTURE}"
     [ "$status" -eq 0 ]
 }
 
@@ -294,7 +294,7 @@ EOF
     printf '%s\n' "$bad" > "$root/ui_xml/own_modal.xml"
     mkdir -p "$root/ui_xml/.worktrees/other/ui_xml"
     printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/ui_xml/peer_modal.xml"
-    run python3 "${GATE}" --repo-root "$root"
+    run python3 ${GATE} --root "$root"
     [ "$status" -eq 1 ]
     contains "ui_xml/own_modal.xml" "$output"
     lacks "peer_modal.xml" "$output"

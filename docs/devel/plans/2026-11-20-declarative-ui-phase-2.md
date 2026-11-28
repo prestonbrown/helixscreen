@@ -192,7 +192,7 @@ Prop to markup:
 |---|---|
 | `hide_action_button="false"` + `action_button_text`/`_text_tag` | `text=".."` (`text_tag` only when the key differs), `role="primary"` |
 | `action_button_icon` | `icon="..."` |
-| `action_button_bg_color`, `_radius`, `_width`, `_height`, `_icon_size` | nothing: `header_action` owns its look (`scripts/check_header_actions.py`) |
+| `action_button_bg_color`, `_radius`, `_width`, `_height`, `_icon_size` | nothing: `header_action` owns its look (the `header-actions` rule of `scripts/check_xml_rules.py`) |
 | `action_button_callback` | `callback="..."` |
 | `action_button_hidden_subject` | `<bind_flag_if_eq subject="..." flag="hidden" ref_value="1"/>` child |
 | `action_button_disabled_subject` / `_disabled_cond` | `<bind_state_if_eq subject=".." state="disabled" ref_value="1"/>` / `<bind_state_if cond=".." state="disabled"/>` child |

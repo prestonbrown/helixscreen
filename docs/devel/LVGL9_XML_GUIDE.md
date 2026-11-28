@@ -239,9 +239,9 @@ A screen's own header buttons go in the `actions` slot at the bar's right end:
 `<header_bar-actions>`, or `<overlay_panel-actions>` in a view extending
 `overlay_panel`. The slot is hidden while empty and spaces its buttons with the
 bar's own gap. Every button in it is a [`header_action`](#header_action);
-`scripts/check_header_actions.py` refuses anything else, and a `bind_*` on the
-slot tag itself acts on the slot (Motion hides its whole slot below the small
-tier).
+The `header-actions` rule of `scripts/check_xml_rules.py` refuses anything
+else, and a `bind_*` on the slot tag itself acts on the slot (Motion hides
+its whole slot below the small tier).
 
 ```xml
 <header_bar-actions>
@@ -1297,8 +1297,8 @@ it never reaches the circle's edge. The per-breakpoint values of `#header_button
 `#header_action_hit` and `#header_action_gap` are tabled in `UI_CONTRIBUTOR_GUIDE.md`
 § "header_action (header buttons)".
 
-**The gate.** `scripts/check_header_actions.py` (`qc_header_actions`) scans `ui_xml/`,
-skipping translations and the component itself:
+**The gate.** The `header-actions` rule of `scripts/check_xml_rules.py`
+(`qc_xml_rules`) scans `ui_xml/`, skipping translations and the component itself:
 
 | Finding | Level |
 |---------|-------|

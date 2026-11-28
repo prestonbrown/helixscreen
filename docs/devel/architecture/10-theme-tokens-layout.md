@@ -59,7 +59,7 @@ flowchart TB
 | [`src/generated/theme_token_table.cpp`](../../../src/generated/theme_token_table.cpp) | Compile-time token snapshot for installed builds; parity-gated by [`tests/unit/test_theme_token_table.cpp`](../../../tests/unit/test_theme_token_table.cpp) |
 | [`tests/fixtures/theme_const_golden.txt`](../../../tests/fixtures/theme_const_golden.txt) | Snapshot of every XML const the theme registers, pinned by `[theme_pins]` |
 | [`src/ui/settings/ui_theme_editor_overlay.cpp`](../../../src/ui/settings/ui_theme_editor_overlay.cpp) | Live theme editor: previews via `theme_manager_apply_theme()`, saves user theme JSONs |
-| [`scripts/check_responsive_token_scope.py`](../../../scripts/check_responsive_token_scope.py) | Gate: tiered tokens must live in top-level `ui_xml/*.xml` only |
+| [`scripts/check_xml_rules.py`](../../../scripts/check_xml_rules.py) | `responsive-token-scope` rule: tiered tokens must live in top-level `ui_xml/*.xml` only |
 
 ## How it works
 
@@ -73,7 +73,7 @@ XML refers to a token by name (`style_pad_all="#space_md"`, `style_bg_color="#ca
 
 The resolver's completeness rule: a token needs the full `_small`/`_medium`/`_large` triplet to register at all; anything shorter is an incomplete set, left unregistered rather than guessed at (`theme_manager_validate_constant_sets()` warns, and the unit suite fails on, these). The outer tiers (`_micro`, `_tiny`, `_xlarge`, `_xxlarge`) are optional and fall back inward toward `_small`/`_large`. One token has its own ladder: `nav_width` keys off horizontal resolution (with vertical-resolution and ultrawide exceptions) via `nav_width_suffix()`, because the nav bar's width tracks the *long* axis. Overlay geometry is *computed* from tokens at push time rather than declared: `compute_overlay_widths()` / `compute_overlay_heights()` (`src/ui/overlay_geometry.cpp#compute_overlay_widths`) spend nav-bar space and the transient gap on whichever axis the nav bar occupies.
 
-Discovery is deliberately **top-level-only**: `theme_manager_find_xml_files()` skips subdirectories, so a responsive token declared in `ui_xml/components/` never registers, and every `#token` referencing it silently resolves to nothing (#1211). Recursing would be worse: alphabetical last-wins would let a component's `nav_width_small` shadow the top-level token globally. [`scripts/check_responsive_token_scope.py`](../../../scripts/check_responsive_token_scope.py) makes the constraint loud.
+Discovery is deliberately **top-level-only**: `theme_manager_find_xml_files()` skips subdirectories, so a responsive token declared in `ui_xml/components/` never registers, and every `#token` referencing it silently resolves to nothing (#1211). Recursing would be worse: alphabetical last-wins would let a component's `nav_width_small` shadow the top-level token globally. [`scripts/check_xml_rules.py`](../../../scripts/check_xml_rules.py), its `responsive-token-scope` rule, makes the constraint loud.
 
 Follow one attribute end to end, `style_pad_all="#space_md"` on a card:
 
@@ -207,4 +207,4 @@ The traps, in rough order of how often they bite:
 13. [`assets/config/default_layout.json`](../../../assets/config/default_layout.json): the anchor table and its `_comment` fields; then `src/system/panel_widget_config.cpp#build_default_grid` loading it through `variant_chain()`.
 14. `src/ui/theme/theme_loader.cpp#load_theme_from_file`: user-dir-first lookup, mode-support parsing.
 15. `src/system/display_settings_manager.cpp#set_dark_mode`: the settings side and its mode-support guards.
-16. [`scripts/check_responsive_token_scope.py`](../../../scripts/check_responsive_token_scope.py): read its docstring; it encodes the easiest way to silently break this subsystem.
+16. [`scripts/check_xml_rules.py`](../../../scripts/check_xml_rules.py), the `responsive-token-scope` section: read it; it encodes the easiest way to silently break this subsystem.
