@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "render_source_slot.h"
 #include "sound_backend.h"
 #include "sound_theme.h"
 
@@ -10,7 +11,6 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -230,8 +230,7 @@ class PWMSoundBackend : public SoundBackend {
     std::atomic<uint64_t> tone_write_count_{0};
 
     // PCM render state
-    std::function<void(float*, size_t, int)> render_source_;
-    std::mutex render_source_mutex_;
+    helix::audio::RenderSourceSlot render_source_;
     std::thread render_thread_;
     std::atomic<bool> render_running_{false};
     bool in_pcm_mode_ = false;

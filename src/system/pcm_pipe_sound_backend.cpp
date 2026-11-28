@@ -300,18 +300,15 @@ void PcmPipeSoundBackend::render_chunk(std::vector<float>& mix, std::vector<int1
     std::memset(mix.data(), 0, frames * sizeof(float));
     const float sr = static_cast<float>(kSampleRate);
 
-    {
-        // Held across the call: the source captures a tracker its owner destroys
-        // right after clear_render_source() returns.
-        std::lock_guard<std::mutex> lock(render_source_mutex_);
-        if (render_source_) {
-            render_source_(mix.data(), frames, kSampleRate);
-            auto ft = filter_type_.load(std::memory_order_acquire);
-            if (ft != helix::audio::FilterType::NONE) {
-                float cutoff = filter_cutoff_.load(std::memory_order_relaxed);
-                helix::audio::update_filter_if_needed(filter_, ft, cutoff, sr);
-                helix::audio::apply_filter(filter_, mix.data(), static_cast<int>(frames));
-            }
+    // The slot runs the source on a copy under no mutex, so a waiting clear is
+    // not starved.
+    if (render_source_.call(mix.data(), frames, kSampleRate)) {
+        std::lock_guard<std::mutex> lock(filter_mutex_);
+        auto ft = filter_type_.load(std::memory_order_acquire);
+        if (ft != helix::audio::FilterType::NONE) {
+            float cutoff = filter_cutoff_.load(std::memory_order_relaxed);
+            helix::audio::update_filter_if_needed(filter_, ft, cutoff, sr);
+            helix::audio::apply_filter(filter_, mix.data(), static_cast<int>(frames));
         }
     }
 
@@ -506,17 +503,15 @@ void PcmPipeSoundBackend::publish_note(int slot, const NoteEvent& event) {
 }
 
 void PcmPipeSoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
-    render_source_ = std::move(fn);
+    render_source_.set(std::move(fn));
 }
 
 void PcmPipeSoundBackend::clear_render_source() {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
-    render_source_ = nullptr;
+    render_source_.clear();
 }
 
 void PcmPipeSoundBackend::set_filter(const std::string& type, float cutoff) {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
+    std::lock_guard<std::mutex> lock(filter_mutex_);
     if (type.empty()) {
         filter_type_.store(helix::audio::FilterType::NONE, std::memory_order_relaxed);
         return;

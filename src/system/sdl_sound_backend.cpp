@@ -174,13 +174,11 @@ void SDLSoundBackend::publish_note(int slot, const NoteEvent& event) {
 }
 
 void SDLSoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
-    render_source_ = std::move(fn);
+    render_source_.set(std::move(fn));
 }
 
 void SDLSoundBackend::clear_render_source() {
-    std::lock_guard<std::mutex> lock(render_source_mutex_);
-    render_source_ = nullptr;
+    render_source_.clear();
 }
 
 // Audio callback (runs in SDL audio thread)
@@ -194,15 +192,10 @@ void SDLSoundBackend::audio_callback(void* userdata, uint8_t* stream, int len) {
     std::memset(mix, 0, num_samples * sizeof(float));
     bool has_audio = false;
 
-    // Render tracker PCM if active
-    {
-        // Held across the call: the source captures a tracker its owner destroys
-        // right after clear_render_source() returns.
-        std::lock_guard<std::mutex> lock(self->render_source_mutex_);
-        if (self->render_source_) {
-            self->render_source_(mix, static_cast<size_t>(num_samples), self->sample_rate_);
-            has_audio = true;
-        }
+    // Render tracker PCM if active. The slot runs the source on a copy under
+    // no mutex, so a waiting clear is not starved.
+    if (self->render_source_.call(mix, static_cast<size_t>(num_samples), self->sample_rate_)) {
+        has_audio = true;
     }
 
     // Mix synth voices using VoiceSlot per-sample rendering

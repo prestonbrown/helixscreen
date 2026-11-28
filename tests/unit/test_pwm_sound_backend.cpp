@@ -3,6 +3,7 @@
 
 #include "../test_helpers/live_thread_count.h"
 #include "../test_helpers/pwm_sound_backend_test_access.h"
+#include "../test_helpers/render_source_probe.h"
 #include "../test_helpers/scoped_env.h"
 #include "pwm_sound_backend.h"
 
@@ -961,6 +962,25 @@ bool wait_for(const std::function<bool()>& pred, int timeout_ms = 15000) {
 }
 
 } // namespace
+
+// The source captures a tracker its owner destroys as soon as
+// clear_render_source() returns (prestonbrown/helixscreen#2010). The probe
+// is declared first, so it outlives the backend and whatever still runs the
+// source.
+TEST_CASE("PWMSoundBackend::clear_render_source waits out a render call in flight",
+          "[sound][pwm][2161]") {
+    helix::test::RenderSourceProbe probe;
+    PwmVirtualRun run(2);
+    run.backend->set_render_source(probe.source());
+
+    // A finished call behind it and one in flight.
+    REQUIRE(probe.wait_for_call_in_flight());
+
+    run.backend->clear_render_source();
+    CHECK(probe.captured_gone());
+    CHECK_FALSE(probe.in_call());
+    CHECK(probe.no_call_after(probe.calls()));
+}
 
 TEST_CASE("render loop parks after sustained silence", "[sound][pwm]") {
     PwmVirtualRun run(2);

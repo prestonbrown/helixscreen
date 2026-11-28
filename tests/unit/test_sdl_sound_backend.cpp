@@ -3,6 +3,7 @@
 
 #ifdef HELIX_DISPLAY_SDL
 
+#include "../test_helpers/render_source_probe.h"
 #include "sdl_sound_backend.h"
 #include "sound_synthesis.h"
 
@@ -104,34 +105,32 @@ TEST_CASE("SDL sound backend releases the audio subsystem on shutdown", "[sound]
 
 // The source captures a tracker its owner destroys as soon as
 // clear_render_source() returns (prestonbrown/helixscreen#2010).
-TEST_CASE("SDL clear_render_source waits out a render call in flight", "[sound][sdl]") {
+TEST_CASE("SDL clear_render_source waits out a render call in flight", "[sound][sdl][2161]") {
     SDL_setenv("SDL_AUDIODRIVER", "dummy", 1);
+    helix::test::RenderSourceProbe probe;
     SDLSoundBackend backend;
     if (!backend.initialize()) {
         SKIP("no audio device available");
     }
-
-    std::atomic<bool> in_call{false};
-    std::atomic<int> calls{0};
-    backend.set_render_source([&](float*, size_t, int) {
-        in_call = true;
-        ++calls;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        in_call = false;
-    });
+    backend.set_render_source(probe.source());
     backend.resume();
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (!in_call.load() && std::chrono::steady_clock::now() < deadline) {
-        std::this_thread::yield();
-    }
-    REQUIRE(in_call.load());
+    // A finished call behind it and one in flight: the clear has one whole
+    // call in front of it and a measured length to compare with.
+    REQUIRE(probe.wait_for_call_in_flight());
 
+    // Waiting out the call in flight is bounded by that one call. The dummy
+    // device paces its callbacks, so this pins the promise clear() makes to
+    // the owner; the loop that never blocks is RenderSourceSlot's own case
+    // (prestonbrown/helixscreen#2161).
+    const auto clear_started = std::chrono::steady_clock::now();
     backend.clear_render_source();
-    CHECK_FALSE(in_call.load());
-    const int calls_at_clear = calls.load();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    CHECK(calls.load() == calls_at_clear);
+    const auto clear_wait = std::chrono::steady_clock::now() - clear_started;
+    CHECK(helix::test::within_one_call(clear_wait, probe.last_call()));
+    CHECK(probe.captured_gone());
+
+    CHECK_FALSE(probe.in_call());
+    CHECK(probe.no_call_after(probe.calls()));
 
     backend.shutdown();
 }

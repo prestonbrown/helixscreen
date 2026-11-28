@@ -541,6 +541,7 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
 - `min_tick_ms()` determines the sequencer's sleep interval, and with it the per-step audible floor (every step is quantized up to it). Return a higher value for high-latency backends (M300 returns 50 ms because G-code round-trips are slow) or floor-limited transducers (PWM returns 20 ms - sub-floor notes would collapse into clicks).
 - `set_waveform()` is only called if `supports_waveforms()` returns true.
 - `set_filter()` is only called if `supports_filter()` returns true.
+- A backend that takes a render source keeps it in a `helix::audio::RenderSourceSlot`: `set_render_source()` is `set()`, `clear_render_source()` is `clear()`, and the render loop calls `call()`, which runs a copy of the source under no lock. `clear()` returns once no call uses the source and the copy is destroyed, which is what the owner of a tracker relies on when it frees what the source captured.
 
 ---
 
@@ -651,6 +652,7 @@ if (SoundManager::instance().is_available()) {
 | `include/sdl_sound_backend.h` | SDL2 audio backend; owns `VoiceSlot voice_slots_[kMaxVoices]` (desktop, `#ifdef HELIX_DISPLAY_SDL`) |
 | `include/alsa_sound_backend.h` | ALSA PCM audio backend; owns `VoiceSlot voice_slots_[kMaxVoices]` (Linux SBCs, `#ifdef HELIX_HAS_ALSA`) |
 | `include/sound_synthesis.h` | Shared synthesis: waveform generation, biquad filter, `BiquadFilter` struct |
+| `include/render_source_slot.h` | `RenderSourceSlot`: the render source a backend's render loop and its owner share (`set`, `clear` that waits out the call in flight, `call` on a copy) |
 | `include/jz_pwm_sound_backend.h` | AD5X jz_pwm DMA backend (one-shot duty-encoded buffers) |
 | `include/pwm_sound_backend.h` | PWM sysfs backend (AD5M buzzer) |
 | `include/pcm_pipe_sound_backend.h` | PCM through a child `aplay` over a pipe (K1 series); owns `VoiceSlot voice_slots_[kMaxVoices]` (`#ifdef HELIX_HAS_PCM_PIPE`) |
@@ -658,6 +660,7 @@ if (SoundManager::instance().is_available()) {
 | `src/system/sound_theme.cpp` | Theme JSON parsing, note-to-freq, musical duration conversion |
 | `src/system/sound_sequencer.cpp` | Sequencer thread + tick loop, LFO/sweep math; `publish_note_for_step()` for PCM backends |
 | `src/system/sound_synthesis.cpp` | Waveform generation, biquad coefficient computation, filter application |
+| `src/system/render_source_slot.cpp` | `RenderSourceSlot` |
 | `src/system/sound_manager.cpp` | Manager singleton, backend auto-detection, theme loading |
 | `src/system/sdl_sound_backend.cpp` | SDL audio callback, per-sample envelope, biquad filter |
 | `src/system/alsa_sound_backend.cpp` | ALSA render thread, per-sample envelope, biquad filter |
@@ -675,6 +678,7 @@ if (SoundManager::instance().is_available()) {
 | `tests/unit/test_sdl_sound_backend.cpp` | SDL backend tests |
 | `tests/unit/test_pwm_sound_backend.cpp` | PWM backend tests |
 | `tests/unit/test_pcm_pipe_sound_backend.cpp` | PcmPipe backend tests against a fake `aplay` script |
+| `tests/unit/test_render_source_slot.cpp` | The render source slot: the promise `clear()` makes and the call it does not hold a lock across |
 | `tests/unit/test_m300_sound_backend.cpp` | M300 backend tests |
 
 ---
