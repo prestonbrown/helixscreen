@@ -270,25 +270,30 @@ def _extract_device_sections(content: str) -> Set[str]:
 def _extract_device_actions(content: str) -> Set[str]:
     found: Set[str] = set()
 
-    # Positional `DA{...}` / `DeviceAction{...}` (ams_backend_ace.cpp style).
-    for m in _DEVICE_ACTION_POSITIONAL_RE.finditer(content):
-        brace = content.index("{", m.start())
-        close = _find_matching(content, brace)
-        if close == -1:
-            continue
-        found |= _positional(content[brace + 1 : close], _ACTION_FIELDS)
+    # Each scan needs its own literal in the file, and a file without it is not
+    # searched.
+    # Positional `DA{...}` / `DeviceAction{...}` (ams_backend_ace.cpp style),
+    # and the factory calls: `DA::slider("id", "Label", "section", ...)`.
+    if "DA" in content or "DeviceAction" in content:
+        for m in _DEVICE_ACTION_POSITIONAL_RE.finditer(content):
+            brace = content.index("{", m.start())
+            close = _find_matching(content, brace)
+            if close == -1:
+                continue
+            found |= _positional(content[brace + 1 : close], _ACTION_FIELDS)
 
-    # Factory calls: `DA::slider("id", "Label", "section", ...)`.
-    for m in _DEVICE_ACTION_FACTORY_RE.finditer(content):
-        paren = m.end() - 1
-        close = _find_matching(content, paren)
-        if close == -1:
-            continue
-        found |= _positional(content[paren + 1 : close], _FACTORY_FIELDS[m.group(1)])
+        for m in _DEVICE_ACTION_FACTORY_RE.finditer(content):
+            paren = m.end() - 1
+            close = _find_matching(content, paren)
+            if close == -1:
+                continue
+            found |= _positional(content[paren + 1 : close], _FACTORY_FIELDS[m.group(1)])
 
     # Designated initializers inside `actions.push_back({...})`
     # (afc_defaults.cpp / hh_defaults.cpp style). Scoping to the push_back call
     # keeps `.label =` on unrelated structs out.
+    if "actions" not in content:
+        return found
     for m in re.finditer(r"\w*actions\w*\.(?:push_back|emplace_back)\s*\(", content):
         paren = content.index("(", m.start())
         close = _find_matching(content, paren)
@@ -367,11 +372,14 @@ def _extract_phase_templates(content: str) -> Set[str]:
     return found
 
 
+# (literals, extractor): every match of an extractor holds one of its literals,
+# so a file with none of them is never searched. A few files in a hundred hold
+# one of these tables, and the scans over every file were most of a sync's time.
 _TABLE_EXTRACTORS = (
-    _extract_helper_calls,
-    _extract_device_sections,
-    _extract_device_actions,
-    _extract_phase_templates,
+    (("label", "description"), _extract_helper_calls),
+    (("DeviceSection",), _extract_device_sections),
+    (("DA", "DeviceAction", "label", "description"), _extract_device_actions),
+    (("toolchange_phase_template",), _extract_phase_templates),
 )
 
 
@@ -383,6 +391,7 @@ def extract_table_strings(content: str) -> Set[str]:
     call on every C++ source.
     """
     found: Set[str] = set()
-    for extractor in _TABLE_EXTRACTORS:
-        found |= extractor(content)
+    for literals, extractor in _TABLE_EXTRACTORS:
+        if any(literal in content for literal in literals):
+            found |= extractor(content)
     return {s for s in found if s.strip()}

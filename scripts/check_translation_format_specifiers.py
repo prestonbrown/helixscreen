@@ -35,6 +35,11 @@ from pathlib import Path
 
 import yaml
 
+# libyaml's reader when the interpreter has it, PyYAML's own otherwise: the
+# same constructor either way, so the same data. Twenty-one catalog loads
+# through the pure-Python scanner were most of this check's time.
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
 INCLUDE_DIR = REPO_ROOT / "include"
@@ -160,12 +165,17 @@ def collect_fmt_tags(roots) -> set:
     return {t for t in _collect_sink_tags(FMT_SINK_RE, roots) if fmt_arg_count(t) > 0}
 
 
+def _load_catalog(path: Path) -> dict:
+    """One locale's catalog, an empty mapping for an empty file."""
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=_YAML_LOADER) or {}
+
+
 def _iter_locales(trans_dir):
     for yml in sorted(trans_dir.glob("*.yml")):
         locale = yml.stem
         if locale == "en":
             continue  # en is the source; nothing to compare against
-        data = yaml.safe_load(yml.read_text(encoding="utf-8")) or {}
+        data = _load_catalog(yml)
         trans = data.get("translations", data)
         if isinstance(trans, dict):
             yield locale, trans
@@ -190,7 +200,7 @@ def check_unresolved_escapes(trans_dir) -> list:
     """
     problems = []
     for yml in sorted(trans_dir.glob("*.yml")):
-        data = yaml.safe_load(yml.read_text(encoding="utf-8")) or {}
+        data = _load_catalog(yml)
         trans = data.get("translations", data)
         if not isinstance(trans, dict):
             continue

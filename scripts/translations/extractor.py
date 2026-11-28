@@ -288,29 +288,33 @@ TR_PLURAL_RUN_RE = re.compile(
     r"\btr_plural\s*\(\s*(?:nullptr|(" + _ADJACENT_LITERALS_RUN + r"))\s*,\s*("
     + _ADJACENT_LITERALS_RUN + r")"
 )
+# (anchor, pattern) for the calls that carry a translatable string. The anchor
+# is a literal every match of the pattern holds, so a file without it is never
+# searched with that pattern: a few files in a hundred hold any of these calls,
+# and a pass over every file was most of a sync's time.
 CPP_TRANSLATABLE_PATTERNS = [
     # lv_tr("text") - explicitly marked for translation (handles escaped quotes
     # and adjacent literal concatenation across multiple lines)
-    r"lv_tr\s*\(\s*" + ADJACENT_LITERALS_GROUP,
+    ("lv_tr", r"lv_tr\s*\(\s*" + ADJACENT_LITERALS_GROUP),
     # TR_NOOP("text") - marks a literal in a static table for extraction;
     # the lookup happens later at the call site via lv_tr(). See
     # include/translation_loader.h.
-    r"TR_NOOP\s*\(\s*" + ADJACENT_LITERALS_GROUP,
+    ("TR_NOOP", r"TR_NOOP\s*\(\s*" + ADJACENT_LITERALS_GROUP),
     # tr_context("buffer|Neutral") - one sense of a word with two; the key keeps
     # its context prefix. See include/translation_loader.h.
-    r"\btr_context\s*\(\s*" + ADJACENT_LITERALS_GROUP,
+    ("tr_context", r"\btr_context\s*\(\s*" + ADJACENT_LITERALS_GROUP),
     # tr_plural("1 thing", "%d things", n) - both keys, singular first; see
     # include/i18n_plural.h.
-    r"\btr_plural\s*\(\s*" + ADJACENT_LITERALS_GROUP,
-    r"\btr_plural\s*\(\s*(?:nullptr|" + _ADJACENT_LITERALS_RUN + r")\s*,\s*"
-    + ADJACENT_LITERALS_GROUP,
+    ("tr_plural", r"\btr_plural\s*\(\s*" + ADJACENT_LITERALS_GROUP),
+    ("tr_plural", r"\btr_plural\s*\(\s*(?:nullptr|" + _ADJACENT_LITERALS_RUN + r")\s*,\s*"
+    + ADJACENT_LITERALS_GROUP),
     # lv_label_set_text(label, "text")
-    r"lv_label_set_text\s*\([^,]+,\s*" + ADJACENT_LITERALS_GROUP,
+    ("lv_label_set_text", r"lv_label_set_text\s*\([^,]+,\s*" + ADJACENT_LITERALS_GROUP),
     # return "Status Text"  (for status strings) — single literal only.
     # Applied to .cpp files only: a bare Title-Case return in a header is as
     # likely an identifier (log_name, *_to_string) as a label, so headers must
     # mark their strings explicitly.
-    r'return\s+"([A-Z][a-z][^"]{2,30})"',
+    ("return", r'return\s+"([A-Z][a-z][^"]{2,30})"'),
 ]
 
 # Matches a single "..." C string literal (with escape handling)
@@ -729,7 +733,9 @@ def extract_strings_from_cpp(cpp_path: Path) -> Set[str]:
         print(f"Warning: Failed to read {cpp_path}: {e}")
         return result
 
-    for pattern in CPP_TRANSLATABLE_PATTERNS:
+    for anchor, pattern in CPP_TRANSLATABLE_PATTERNS:
+        if anchor not in content:
+            continue
         if pattern.startswith("return") and cpp_path.suffix == ".h":
             continue
         # lv_tr() and TR_NOOP() are both explicit marks: the heuristics below

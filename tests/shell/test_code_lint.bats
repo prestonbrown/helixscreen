@@ -384,6 +384,17 @@ SHAPES
   done <<< "$output"
 }
 
+@test "the coverage gate's dry run leaves the obsolete count to the obsolete command" {
+  # The gate reads one thing out of the sync, whether a key is missing. The
+  # count of keys nothing references is a by-product whose reference scan
+  # reads every string literal under seven trees, so the gate opts out.
+  run grep -n 'translation_sync.py sync' scripts/qc/translation_coverage.sh
+  [ "$status" -eq 0 ]
+  while IFS= read -r line; do
+    contains "--skip-obsolete" "$line"
+  done <<< "$output"
+}
+
 @test "the coverage gate wakes on src and ui_xml, not just translations" {
   # A new lv_tr() in src/ or a label_tag in ui_xml/ is what ADDS an untranslated
   # string; gating the check on ^translations/ alone would sleep through exactly

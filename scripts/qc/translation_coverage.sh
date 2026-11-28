@@ -30,11 +30,17 @@ qc_translation_coverage() {
 # --dry-run is load-bearing: a bare `sync` REWRITES all nine catalogs, and a
 # check that edits the tree it is inspecting would stage catalog churn behind
 # the committer's back.
+#
+# --skip-obsolete is speed only. The gate reads one thing out of the sync,
+# whether a key is missing; the count of keys nothing references is a
+# by-product whose reference scan reads every string literal under seven
+# trees, and the obsolete command reports it. `make translation-sync` and a
+# sync run by hand keep the count.
 SECTION_START=$(date +%s)
 echo -n "🌐 Checking translation catalog coverage..."
 
 if [ -x "$VENV_PYTHON" ]; then
-  if "$VENV_PYTHON" scripts/translation_sync.py sync --dry-run >/tmp/trans_cov.out 2>&1 \
+  if "$VENV_PYTHON" scripts/translation_sync.py sync --dry-run --skip-obsolete >/tmp/trans_cov.out 2>&1 \
      && grep -q "All XML strings already in YAML files" /tmp/trans_cov.out; then
     section_time $SECTION_START
     echo ""

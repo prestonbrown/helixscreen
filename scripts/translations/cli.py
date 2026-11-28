@@ -65,6 +65,7 @@ def run_sync(
     with_sources: bool = False,
     base_locale: str = "en",
     cpp_dirs: list = None,
+    check_obsolete: bool = True,
 ) -> SyncResult:
     """
     Run the full sync workflow: extract from XML and C++, merge to YAML.
@@ -76,6 +77,10 @@ def run_sync(
         with_sources: If True, add source file comments
         base_locale: Base locale for comparison
         cpp_dirs: Optional list of directories containing C++ source files
+        check_obsolete: If False, leave obsolete_keys_found at 0 and do not run
+            the scan that counts the keys nothing references. The coverage gate
+            reads only new_keys_found, and the scan reads every string literal
+            under the reference trees.
 
     Returns:
         SyncResult with statistics
@@ -141,14 +146,15 @@ def run_sync(
     # not mutated above, so hand it over rather than paying for the scan twice.
     # The with_sources branch built it from a different extractor entry point,
     # so that path keeps re-scanning.
-    obsolete = find_obsolete_keys(
-        xml_dir,
-        yaml_dir,
-        base_locale,
-        cpp_dirs=cpp_dirs,
-        extracted=None if with_sources else set(new_keys),
-    )
-    result.obsolete_keys_found = len(obsolete)
+    if check_obsolete:
+        obsolete = find_obsolete_keys(
+            xml_dir,
+            yaml_dir,
+            base_locale,
+            cpp_dirs=cpp_dirs,
+            extracted=None if with_sources else set(new_keys),
+        )
+        result.obsolete_keys_found = len(obsolete)
 
     return result
 
