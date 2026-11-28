@@ -1559,14 +1559,14 @@ class AmsState {
      * @brief Get current has weight subject
      * @return Subject holding 1 if weight data available, 0 otherwise (for visibility binding)
      */
+    lv_subject_t* get_current_has_weight_subject() {
+        return &current_has_weight_;
+    }
+
     /// 1 while ams_current_material_text names a filament, 0 while it is
     /// empty or the unloaded placeholder.
     lv_subject_t* get_current_has_material_subject() {
         return &current_has_material_;
-    }
-
-    lv_subject_t* get_current_has_weight_subject() {
-        return &current_has_weight_;
     }
 
     /**

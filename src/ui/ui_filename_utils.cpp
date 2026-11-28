@@ -89,13 +89,14 @@ std::string get_display_filename(const std::string& path) {
 
 namespace {
 
-// "1h54m", "45m", "2d3h12m", "1h2m3s": digit runs each closed by a unit, the
-// units in d-h-m-s order and each at most once.
+// "1h54m", "45m", "2d3h12m", "1h2m3s": digit runs each closed by a lower-case
+// unit, the units in d-h-m-s order and each at most once. A slicer writes a
+// day count only ahead of hours and minutes, so a token ending in a day count
+// ("3D", "2d") is part of the name.
 bool is_print_time_token(std::string_view token) {
     static constexpr std::string_view kUnits = "dhms";
     size_t next_unit = 0;
     size_t i = 0;
-    bool any = false;
     while (i < token.size()) {
         const size_t digits_start = i;
         while (i < token.size() && std::isdigit(static_cast<unsigned char>(token[i]))) {
@@ -104,16 +105,14 @@ bool is_print_time_token(std::string_view token) {
         if (i == digits_start || i == token.size()) {
             return false;
         }
-        const size_t unit = kUnits.find(
-            static_cast<char>(std::tolower(static_cast<unsigned char>(token[i]))), next_unit);
+        const size_t unit = kUnits.find(token[i], next_unit);
         if (unit == std::string_view::npos) {
             return false;
         }
         next_unit = unit + 1;
         ++i;
-        any = true;
     }
-    return any;
+    return next_unit > 1;
 }
 
 // "0.2", "0.28", "0.2mm".
