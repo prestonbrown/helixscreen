@@ -104,6 +104,8 @@ class CrashReporter {
         // through to a bare abort() (which leaves __abort_msg empty). This is
         // the reason behind an otherwise-blank SIGABRT (issue #987).
         std::string terminate_msg;
+        /// The thread that threw an uncaught exception (its kernel name).
+        std::string thread_name;
 
         // Most recent ERROR-level log lines before the crash (newest first),
         // captured by CrashErrorLogSink. Last-ditch context when neither

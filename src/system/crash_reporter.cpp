@@ -202,6 +202,9 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     if (crash_data.contains("terminate_msg"))
         report.terminate_msg = crash_data["terminate_msg"];
 
+    if (crash_data.contains("thread"))
+        report.thread_name = crash_data["thread"];
+
     if (crash_data.contains("recent_errors") && crash_data["recent_errors"].is_array()) {
         for (const auto& e : crash_data["recent_errors"]) {
             report.recent_errors.push_back(e.get<std::string>());
@@ -454,6 +457,9 @@ nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
     if (!report.terminate_msg.empty()) {
         j["terminate_msg"] = report.terminate_msg;
     }
+    if (!report.thread_name.empty()) {
+        j["thread"] = report.thread_name;
+    }
     if (!report.recent_errors.empty()) {
         j["recent_errors"] = report.recent_errors;
     }
@@ -591,6 +597,9 @@ std::string CrashReporter::report_to_text(const CrashReport& report) {
     }
     if (!report.exception_what.empty()) {
         ss << "Exception: " << report.exception_what << "\n";
+    }
+    if (!report.thread_name.empty()) {
+        ss << "Thread:    " << report.thread_name << "\n";
     }
     ss << "\n";
 
@@ -742,6 +751,9 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
     }
     if (!report.exception_what.empty()) {
         body << "- **Exception:** " << report.exception_what << "\n";
+    }
+    if (!report.thread_name.empty()) {
+        body << "- **Thread:** `" << report.thread_name << "`\n";
     }
     if (!report.abort_msg.empty()) {
         body << "- **Abort Reason:** `" << report.abort_msg << "`\n";

@@ -32,6 +32,7 @@
 #include <fstream>
 #include <string>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -1036,6 +1037,28 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record writes parseab
     REQUIRE(parsed.contains("timestamp"));
     REQUIRE(parsed.contains("uptime_sec"));
     REQUIRE(parsed["exception"] == "std::runtime_error: test");
+}
+
+TEST_CASE_METHOD(CrashTestFixture,
+                 "Crash: an exception record names the throwing thread and its frames",
+                 "[telemetry][crash]") {
+    crash_handler::install(crash_path());
+    // std::terminate runs on the thread whose exception escaped: a worker's.
+    helix::make_thread([] {
+        prctl(PR_SET_NAME, "jq-worker", 0, 0, 0);
+        crash_handler::write_exception_record("Operation not permitted");
+    }).join();
+    crash_handler::uninstall();
+
+    json parsed = crash_handler::read_crash_file(crash_path());
+    REQUIRE(parsed != nullptr);
+    CHECK(parsed["exception"] == "Operation not permitted");
+    CHECK(parsed["thread"] == "jq-worker");
+    CHECK(parsed.contains("load_base"));
+#if defined(__linux__) && defined(__GLIBC__)
+    REQUIRE(parsed.contains("backtrace"));
+    CHECK_FALSE(parsed["backtrace"].empty());
+#endif
 }
 
 TEST_CASE_METHOD(CrashTestFixture, "Crash: write_exception_record handles null what",
