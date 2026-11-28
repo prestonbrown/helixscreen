@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# pre-push sweeps a work-branch push with the commit-level gates only, and a push
-# that reaches main, release/* or a tag with everything. The hook runs against a
-# fixture repo whose gates are stand-ins that print their name and the mode.
+# pre-push runs no quality sweep for a work-branch push (patch drift only), and a
+# push that reaches main, release/* or a tag with everything. The hook runs against
+# a fixture repo whose gates are stand-ins that print their name and the mode.
 
 load helpers
 
@@ -63,14 +63,35 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     contains "skip_push_only=0" "$output"
 }
 
-@test "a work-branch push runs the commit-level gates and leaves the rest to the land gate" {
+@test "a work-branch push runs no quality sweep, and still asks patch drift" {
     echo dirty >"$ROOT/f"
     push refs/heads/fix/thing
-    [ "$status" -eq 0 ]
-    contains "ran: quality-checks skip_push_only=1" "$output"
-    contains "work-branch sweep" "$output"
+    [ "$status" -eq 0 ] || fail "$output"
+    lacks "ran: quality-checks" "$output"
+    contains "a work-branch push runs no quality sweep" "$output"
+    contains "commit hook judged each commit's staged files" "$output"
+    contains "make land-gate and CI" "$output"
+    contains "run every gate before anything reaches main" "$output"
     lacks "ran: check_clang_diagnostics" "$output"
     contains "ran: check_patch_drift" "$output"
+}
+
+@test "a work-branch push checks nothing out and sweeps nowhere" {
+    echo dirty >"$ROOT/f"
+    push refs/heads/fix/thing
+    [ "$status" -eq 0 ] || fail "$output"
+    lacks "working tree differs" "$output"
+    lacks "Sweeping" "$output"
+    [ "$(git -C "$ROOT" worktree list | wc -l)" -eq 1 ] || fail "a throwaway checkout was left behind"
+}
+
+@test "a work-branch push still fails on patch drift in the pushing tree" {
+    printf 'import sys\nprint("ran: check_patch_drift")\nsys.exit(1)\n' >"$ROOT/scripts/check_patch_drift.py"
+    push refs/heads/fix/thing
+    [ "$status" -eq 1 ]
+    contains "ran: check_patch_drift" "$output"
+    contains "Patch drift is in YOUR WORKING TREE" "$output"
+    lacks "ran: quality-checks" "$output"
 }
 
 @test "a push that updates a work branch and main together runs every gate" {
@@ -104,7 +125,7 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
 
 @test "kept gate logs go to the pushing tree, not the throwaway checkout" {
     echo dirty >"$ROOT/f"
-    push refs/heads/fix/thing
+    push refs/heads/main
     [ "$status" -eq 0 ]
     contains "logs=$(cd "$ROOT" && pwd -P)/build/qc-logs" "$output"
 }
