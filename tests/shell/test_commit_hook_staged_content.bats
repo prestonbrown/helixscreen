@@ -149,6 +149,20 @@ assert_judged_on_staged_file() {
         "Unformatted C++"
 }
 
+@test "the gates after the C++ format read the formatted text, not the copy from before" {
+  # clang-format drops the trailing spaces along with the rest of the repair, so
+  # only the copy from before the format still has them to report.
+  needs_venv
+  stage "$CPP" a-unformatted-trailing-ws.cpp
+  fixture a-unformatted-trailing-ws.cpp > "$CPP"
+
+  hook
+
+  [ "$status" -eq 0 ] || fail "$output"
+  lacks "Found trailing whitespace" "$output"
+  [ "$(staged "$CPP")" = "$(fixture a-formatted.cpp)" ] || fail "the index holds: $(staged "$CPP")"
+}
+
 @test "the hook formats a staged C++ file in the index and on disk when nothing is held back" {
     needs_venv
     stage "$CPP" a-unformatted.cpp

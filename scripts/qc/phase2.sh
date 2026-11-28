@@ -134,6 +134,9 @@ if [ -n "$FILES" ]; then
             if "$CF_BIN" "--assume-filename=${REPO_ROOT:-$PWD}/$file" \
                  < "$(qc_read_path "$file")" > "$qc_formatted" &&
                qc_stage_content "$file" "$qc_formatted"; then
+              # The staged copy is the index's now: the gates that fan out
+              # after this one read it, not the text from before the format.
+              [ -z "$QC_STAGED_DIR" ] || cp "$qc_formatted" "$QC_STAGED_DIR/$file"
               case "$CF_PRE_DIRTY" in
                 *" $file "*) ;;
                 *) cp "$qc_formatted" "$file" ;;
