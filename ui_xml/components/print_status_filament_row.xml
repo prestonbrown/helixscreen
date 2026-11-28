@@ -8,19 +8,26 @@
   <view name="filament_ams_status_row"
         extends="lv_obj" width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
         flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+    <!-- The whole line goes when it would hold only a sensor glyph reading
+         loaded: no lane with a named filament, no runout or disabled
+         sensor, no tool changes. -->
+    <bind_flag_if cond="(ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0) and (filament_sensor_count eq 0 or filament_runout_scoped eq 1 or filament_runout_scoped lt 0) and toolchange_visible eq 0"
+                  flag="hidden"/>
     <!-- Stands down whenever ams_status_row shows, which carries the same
-         glyph beside its lane; an AMS printer between lanes (no active
-         tool) shows it here instead. -->
+         glyph beside its lane; otherwise it shows here only while the sensor
+         reads runout or disabled, the states that ask for action. -->
     <lv_obj name="filament_status_row"
             width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
             style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <bind_flag_if cond="filament_sensor_count eq 0 or (ams_slot_count gt 0 and ams_current_tool ge 0)" flag="hidden"/>
+      <bind_flag_if cond="filament_sensor_count eq 0 or filament_runout_scoped eq 1 or (ams_slot_count gt 0 and ams_current_tool ge 0 and ams_current_has_material eq 1)"
+                    flag="hidden"/>
       <filament_sensor_indicator subject="filament_runout_scoped"/>
     </lv_obj>
     <lv_obj name="ams_status_row"
             height="content" flex_grow="1" style_min_width="0" style_pad_all="0" style_bg_opa="0" style_border_width="0"
             flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
+      <!-- A lane with no filament name would show its glyph alone. -->
+      <bind_flag_if cond="ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0" flag="hidden"/>
       <ams_current_tool name="ams_current_tool_indicator" runout_subject="filament_runout_scoped"/>
     </lv_obj>
     <lv_obj name="toolchange_status"
