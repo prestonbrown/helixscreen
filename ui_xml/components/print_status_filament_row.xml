@@ -12,7 +12,7 @@
     <!-- The whole line goes when it would hold only a sensor glyph reading
          loaded: no lane with a named filament, no runout or disabled
          sensor, no tool changes. -->
-    <bind_flag_if cond="(ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0) and (filament_sensor_count eq 0 or filament_runout_scoped eq 1 or filament_runout_scoped lt 0) and toolchange_visible eq 0"
+    <bind_flag_if cond="(ams_slot_count eq 0 or ams_current_tool lt 0 or ams_current_has_material eq 0) and (filament_sensor_count eq 0 or filament_runout_scoped eq 1 or filament_runout_scoped lt 0) and (toolchange_visible eq 0 or ui_breakpoint le 1)"
                   flag="hidden"/>
     <!-- Stands down whenever ams_status_row shows, which carries the same
          glyph beside its lane; otherwise it shows here only while the sensor
