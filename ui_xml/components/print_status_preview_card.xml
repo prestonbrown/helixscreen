@@ -24,12 +24,12 @@
     <px name="corner_button_pull" value="-8"/>
   </consts>
   <styles>
+    <!-- Offset and spacing as a style, so corner_row_tucked can replace them. -->
+    <style name="corner_row" translate_x="#space_md" translate_y="#space_md" pad_all="0" pad_gap="#space_md"/>
     <!-- Micro and tiny: the corner controls tuck into the corner and draw
          smaller, so they cover less of a small preview; each still takes taps
          across a touch_target_min box. The row's offset pulls the boxes'
          transparent margin past the card edge, where #space_xs remains. -->
-    <!-- Offset and spacing as a style, so corner_row_tucked can replace them. -->
-    <style name="corner_row" translate_x="#space_md" translate_y="#space_md" pad_all="0" pad_gap="#space_md"/>
     <style name="corner_row_tucked"
            translate_x="#corner_button_pull" translate_y="#corner_button_pull" pad_left="#space_xs" pad_top="#space_xs"
            pad_gap="0"/>
