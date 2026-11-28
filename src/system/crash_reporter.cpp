@@ -193,6 +193,7 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     copy_field("abort_msg", report.abort_msg);
     copy_field("abort_msg_state", report.abort_msg_state);
     copy_field("terminate_msg", report.terminate_msg);
+    copy_field("thread", report.thread_name);
 
     if (const json* recent_errors = helix::json_util::find_array(crash_data, "recent_errors")) {
         for (const auto& e : *recent_errors) {
@@ -426,6 +427,9 @@ nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
     if (!report.terminate_msg.empty()) {
         j["terminate_msg"] = report.terminate_msg;
     }
+    if (!report.thread_name.empty()) {
+        j["thread"] = report.thread_name;
+    }
     if (!report.recent_errors.empty()) {
         j["recent_errors"] = report.recent_errors;
     }
@@ -565,6 +569,9 @@ std::string CrashReporter::report_to_text(const CrashReport& report) {
     }
     if (!report.exception_what.empty()) {
         ss << "Exception: " << report.exception_what << "\n";
+    }
+    if (!report.thread_name.empty()) {
+        ss << "Thread:    " << report.thread_name << "\n";
     }
     ss << "\n";
 
@@ -714,6 +721,9 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
     }
     if (!report.exception_what.empty()) {
         body << "- **Exception:** " << report.exception_what << "\n";
+    }
+    if (!report.thread_name.empty()) {
+        body << "- **Thread:** `" << report.thread_name << "`\n";
     }
     if (!report.abort_msg.empty()) {
         body << "- **Abort Reason:** `" << report.abort_msg << "`\n";

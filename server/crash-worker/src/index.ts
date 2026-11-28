@@ -605,6 +605,10 @@ export function formatIssueBody(r: CrashReport, fingerprint: string, resolved: R
     md += `| **Exception** | ${mdEscape(r.exception)} |\n`;
   }
 
+  if (typeof r.thread === "string" && r.thread) {
+    md += `| **Thread** | \`${mdEscape(r.thread)}\` |\n`;
+  }
+
   if (r.queue_callback) {
     md += `| **Queue Callback** | \`${mdEscape(r.queue_callback)}\` |\n`;
   }

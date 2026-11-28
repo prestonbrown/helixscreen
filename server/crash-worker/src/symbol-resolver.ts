@@ -87,6 +87,8 @@ export interface CrashReport {
   /** "<major>.<minor>" of the LVGL the binary was built on; absent from 9.5 builds. */
   lvgl_version?: string;
   exception?: string;
+  /** Kernel name of the thread an uncaught exception escaped on. */
+  thread?: string;
   bt_source?: string;
   text_start?: string;
   text_end?: string;
