@@ -583,6 +583,8 @@ TEST_CASE("strip_slicer_suffix() drops the filament, layer height and print time
     CHECK(strip_slicer_suffix("gear_PLA-CF_0.28mm_2d3h12m") == "gear");
     CHECK(strip_slicer_suffix("clip_Generic petg_0.16_1h2m3s") == "clip");
     CHECK(strip_slicer_suffix("hook_12m") == "hook");
+    CHECK(strip_slicer_suffix("pin_PLA_40s") == "pin");
+    CHECK(strip_slicer_suffix("tab_PETG_0.2_35m12s") == "tab");
 }
 
 TEST_CASE("strip_slicer_suffix() leaves a name without a trailing print time",
@@ -596,6 +598,9 @@ TEST_CASE("strip_slicer_suffix() leaves a name without a trailing print time",
     CHECK(strip_slicer_suffix("part_h2m") == "part_h2m");
     CHECK(strip_slicer_suffix("part_12") == "part_12");
     CHECK(strip_slicer_suffix("part_2m1h") == "part_2m1h");
+    CHECK(strip_slicer_suffix("Logo_3D") == "Logo_3D");
+    CHECK(strip_slicer_suffix("lithophane_2d") == "lithophane_2d");
+    CHECK(strip_slicer_suffix("Part_1H54M") == "Part_1H54M");
     CHECK(strip_slicer_suffix("") == "");
 }
 

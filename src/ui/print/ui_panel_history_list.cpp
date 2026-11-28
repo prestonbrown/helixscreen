@@ -1045,6 +1045,7 @@ static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subj
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     // Update string subjects using lv_subject_set_string (LVGL 9.4 API)
+    // The detail view shows the full name; the list rows show it without the slicer suffix.
     helix::gcode::note_displayed_filename(job.filename);
     lv_subject_set_string(&detail_filename_, job.filename.c_str());
     lv_subject_set_string(&detail_status_, lv_tr(status_to_label(job.status)));
