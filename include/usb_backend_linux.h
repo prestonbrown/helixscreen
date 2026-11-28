@@ -49,8 +49,9 @@ class UsbBackendLinux : public UsbBackend {
 
     void set_event_callback(EventCallback callback) override;
 
-    /// Install the automounter that start() runs. start() only builds the
-    /// production automounter when none is installed, so this comes first.
+    /// Install the automounter that start() runs, before start() only: start()
+    /// builds the production automounter when none is installed, and the
+    /// monitor thread then polls the one it finds there.
     void set_automount(std::unique_ptr<helix::usb::UsbAutomount> automount);
 
     UsbError get_connected_drives(std::vector<UsbDrive>& drives) override;

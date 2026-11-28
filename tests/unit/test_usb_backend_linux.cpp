@@ -138,6 +138,37 @@ TEST_CASE("UsbBackendLinux stop unmounts what the fallback mounter mounted",
     REQUIRE(fake->unmount_record() == std::vector<std::string>{"/mnt/usb/hxwire1|plain"});
 }
 
+TEST_CASE("UsbBackendLinux set_automount after start() leaves the installed automounter in place",
+          "[usb_backend][linux]") {
+    // The monitor thread polls whatever is installed, so a swap under it would
+    // free the one it is using. A second automounter is offered once the thread
+    // runs: the first keeps seeing the drive, and the second never does.
+    auto first = std::make_shared<helix::test::FakeMountOps>();
+    first->candidates = {"/dev/hxwire1"};
+    first->present = {"/dev/hxwire1"};
+    auto second = std::make_shared<helix::test::FakeMountOps>();
+    second->candidates = {"/dev/hxwire2"};
+    second->present = {"/dev/hxwire2"};
+
+    UsbBackendLinux backend;
+    backend.set_automount(std::make_unique<helix::usb::UsbAutomount>(
+        std::make_unique<helix::test::SharedMountOps>(first), std::chrono::milliseconds(0)));
+    REQUIRE(backend.start().success());
+    backend.set_automount(std::make_unique<helix::usb::UsbAutomount>(
+        std::make_unique<helix::test::SharedMountOps>(second), std::chrono::milliseconds(0)));
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (first->mount_count() == 0 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    REQUIRE(first->mount_count() > 0);
+    CHECK(second->mount_count() == 0);
+
+    backend.stop();
+    CHECK(first->unmount_record() == std::vector<std::string>{"/mnt/usb/hxwire1|plain"});
+    CHECK(second->unmount_record().empty());
+}
+
 TEST_CASE("UsbBackendLinux::scan_directory lists every printable extension",
           "[usb_backend][linux]") {
     namespace fs = std::filesystem;

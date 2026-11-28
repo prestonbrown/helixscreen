@@ -130,6 +130,12 @@ void UsbBackendLinux::set_event_callback(EventCallback callback) {
 }
 
 void UsbBackendLinux::set_automount(std::unique_ptr<helix::usb::UsbAutomount> automount) {
+    // The monitor thread polls whatever is installed, so a swap under it would
+    // free the one it is using.
+    if (running_) {
+        spdlog::warn("[UsbBackendLinux] set_automount() after start() is ignored");
+        return;
+    }
     automount_ = std::move(automount);
 }
 
