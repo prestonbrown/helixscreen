@@ -200,9 +200,9 @@ void hide(lv_obj_t* o) { lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); }'
 
 @test "the driver runs the gate at commit and prints its note beside the verdict" {
     eval "$(grep '^QC_ALL=' scripts/quality-checks.sh)"
-    eval "$(grep '^QC_PUSH_ONLY=' scripts/quality-checks.sh)"
+    eval "$(grep '^QC_PER_FILE=' scripts/quality-checks.sh)"
     [[ " $QC_ALL " == *" qc_design_ratchets "* ]] || fail "not in QC_ALL"
-    [[ " $QC_PUSH_ONLY " != *" qc_design_ratchets "* ]] || fail "deferred to push"
+    [[ " $QC_PER_FILE " == *" qc_design_ratchets "* ]] || fail "not in the per-file tier: a commit would not run it"
     run grep -c 'cat "$QC_TMP/design_ratchets.note"' scripts/quality-checks.sh
     [ "$output" = 1 ] || fail "the driver does not repeat the note"
 }

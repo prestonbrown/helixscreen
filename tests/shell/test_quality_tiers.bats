@@ -22,12 +22,12 @@ with_driver() {
     STAGED_ONLY="$1"
     QC_STAGED_ALL="${QC_STAGED_ALL:-src/ui/foo.cpp}"
     eval "$(grep "^QC_ALL=" scripts/quality-checks.sh)"
-    eval "$(grep -E "^QC_(PUSH_ONLY|PER_FILE|WHOLE_TREE)=" scripts/quality-checks.sh)"
+    eval "$(grep -E "^QC_(PER_FILE|WHOLE_TREE)=" scripts/quality-checks.sh)"
     # Each gate trigger as the driver sources it, so a case wakes a gate only
     # as a commit would.
     eval "$(grep "^QC_TRIGGER_[A-Z_]*=" scripts/qc/_lib.sh)"
     eval "$(grep -h "^QC_TRIGGER_qc_" scripts/qc/*.sh)"
-    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_DEFERRED=/p; /^QC_LEFT=/p; /^QC_LEFT_WHOLE=/p; /^qc_check_tiers() {/,/^}/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_LEFT_WHOLE=/p; /^qc_check_tiers() {/,/^}/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
     eval "$2"
   ' _ "$1" "$2"
 }
@@ -70,16 +70,16 @@ with_driver() {
 # ------------------------------------------------------------ what a commit runs
 
 @test "a commit starts no whole-tree gate, and names them as the full sweep's" {
-  run with_driver true 'n=0; for g in $QC_WHOLE_TREE; do qc_wanted "$g" && echo "RAN $g" || n=$((n + 1)); done; echo "not run: $n of $(echo $QC_WHOLE_TREE | wc -w)"; echo "left:$QC_LEFT_WHOLE"; echo "deferred:$QC_DEFERRED"'
+  run with_driver true 'n=0; for g in $QC_WHOLE_TREE; do qc_wanted "$g" && echo "RAN $g" || n=$((n + 1)); done; echo "not run: $n of $(echo $QC_WHOLE_TREE | wc -w)"; echo "left:$QC_LEFT_WHOLE"'
   [ "$status" -eq 0 ] || fail "$output"
   lacks "RAN " "$output"
   contains "not run: 41 of 41" "$output"
   contains " qc_orphan_callbacks" "$output"
   contains " qc_feature_gates" "$output"
   contains " qc_test_lint" "$output"
-  # A gate that is push-only as well is named by that rule, the deferred line.
-  contains "deferred:" "$output"
+  # The repo-wide lints are whole-tree gates like the rest.
   contains " qc_translation_coverage" "$output"
+  contains " qc_code_lint" "$output"
 }
 
 @test "a commit still runs the per-file gates an XML file wakes" {
@@ -157,6 +157,23 @@ with_driver() {
   contains " qc_orphan_callbacks" "$output"
   contains "Quality checks passed" "$output"
   lacks "A gate's tier is wrong" "$output"
+}
+
+@test "a QC_LEFT_WHOLE or QC_SKIPPED left in the environment does not reach the transcript" {
+  # Each names what a commit did not run. The driver starts both empty: an
+  # inherited value would join the summary of a run that never made it.
+  local idx="$BATS_TEST_TMPDIR/index"
+  run bash -c '
+    unset GIT_DIR GIT_WORK_TREE
+    export GIT_INDEX_FILE="$1"
+    git read-tree HEAD
+    QC_LEFT_WHOLE="qc_from_the_environment" QC_SKIPPED="qc_from_the_environment" \
+      QC_NO_CACHE=1 scripts/quality-checks.sh --staged-only
+  ' _ "$idx"
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "Whole-tree checks, left to the full sweep" "$output"
+  contains "Skipped (nothing staged that they inspect)" "$output"
+  lacks "qc_from_the_environment" "$output"
 }
 
 # ------------------------------------------------- where a whole-tree gate runs

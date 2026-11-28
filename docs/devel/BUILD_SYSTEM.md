@@ -1071,7 +1071,7 @@ the result only where it holds nothing unstaged.
 
 A commit compiles nothing: whoever commits a source has just built or syntax-checked it,
 and `make land-gate` builds everything once per batch. `HELIX_QC_ALL_AT_COMMIT=1` runs the
-whole-tree and push-only gates at commit too, each still behind its path trigger, and
+whole-tree gates at commit too, each still behind its path trigger, and
 syntax-checks the staged sources and one includer per staged header; `HELIX_QC_FULL_BUILD=1`
 builds the app instead.
 `scripts/qc_timing.py --staged-only` shows where a commit's time went.

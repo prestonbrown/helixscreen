@@ -293,7 +293,7 @@ HEADER_OFFENDER='<component><view><header_bar-actions><ui_button name="btn"/></h
     lacks "qc_overlay_width" "$QC_ALL"
     lacks "qc_icon_names" "$QC_ALL"
     [ -z "$(qc_trigger xml_rules)" ] || fail "qc_xml_rules has a trigger: a commit that stages no XML must run it"
-    lacks "qc_xml_rules" "$(grep '^QC_PUSH_ONLY=' scripts/quality-checks.sh)"
+    contains "qc_xml_rules" "$(grep '^QC_PER_FILE=' scripts/quality-checks.sh)"
     for fn in $QC_ALL; do
         [ -f "scripts/qc/${fn#qc_}.sh" ] || fail "QC_ALL names $fn, which has no wrapper"
     done

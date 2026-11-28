@@ -164,29 +164,15 @@ qc_stamp_replay() {
   esac
   echo "   Force a re-run with QC_NO_CACHE=1"
 }
-# A work-branch sweep (HELIX_QC_SKIP_PUSH_ONLY) records its pass apart from a full
-# one: a full pass covers it, but it never stands in for a full sweep.
-qc_stamp_for_run() {
-  # $1 = the state's full-sweep stamp
-  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then echo "$1.commit-level"; else echo "$1"; fi
-}
-qc_stamp_covering() {
-  # $1 = the state's full-sweep stamp; prints a stamp that covers this run, if any
-  if [ -f "$1" ]; then
-    echo "$1"
-  elif [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ] && [ -f "$1.commit-level" ]; then
-    echo "$1.commit-level"
-  fi
-}
+# Only a full sweep writes a stamp, so a stamp is always a full sweep's.
 QC_STAMP=""
 if [ "$STAGED_ONLY" != true ] && [ -z "${QC_NO_CACHE:-}" ]; then
   QC_STAMP_FULL="$QC_STAMP_DIR/$(qc_state_hash)"
-  QC_COVERING="$(qc_stamp_covering "$QC_STAMP_FULL")"
-  if [ -n "$QC_COVERING" ]; then
-    qc_stamp_replay "$QC_COVERING"
+  if [ -f "$QC_STAMP_FULL" ]; then
+    qc_stamp_replay "$QC_STAMP_FULL"
     exit 0
   fi
-  QC_STAMP="$(qc_stamp_for_run "$QC_STAMP_FULL")"
+  QC_STAMP="$QC_STAMP_FULL"
 fi
 
 # Verdicts that carry a count are recorded here as well as printed, so a cached
@@ -244,17 +230,6 @@ if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
 
 QC_ALL="qc_phase1 qc_xml_tools qc_xml_attr qc_dup_names qc_xml_schema qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_double_binds qc_xml_rules qc_design_pixels qc_esp32_app_srcs qc_esp32_stub_coverage qc_esp32_xml_bindings qc_phase2 qc_icon_font qc_mdi_codepoints qc_mem_safety qc_null_safety qc_l081 qc_filament_ops_neutral qc_hold_ends_press qc_net_pii qc_decl_ui qc_orphan_callbacks qc_head_labels qc_constant_naming qc_comment_archaeology qc_design_ratchets qc_layering qc_spdlog_only qc_design_tokens qc_test_mirrors qc_growth_ratchets qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_lvgl_subject_api qc_translation_fmt qc_base_locale qc_translation_files qc_translation_packs_fresh qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_bats_inert qc_code_lint qc_test_lint qc_ui_lint"
 
-# Push-only gates: the repo-wide scans that would set a commit's wall clock
-# (QC_PROFILE=1 prints each gate's time). A commit waits for its slowest gate,
-# so one of these alone costs every commit seconds to minutes; pre-push and
-# land-gate run them ungated before anything reaches main.
-# HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too.
-#
-# Only a lint belongs here: a failure it finds is a policy breach, not a commit
-# that fails to build or load. The slow gates a commit keeps are that kind:
-# qc_phase2 (formatting).
-QC_PUSH_ONLY="qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_app_srcs qc_translation_fmt qc_test_tautology qc_test_widget_registry qc_hold_ends_press qc_growth_ratchets qc_code_lint qc_layering"
-
 # What a gate needs to decide, one tier per gate (qc_check_tiers refuses a gate
 # without one). The commit hook (--staged-only) runs the per-file tier only.
 #
@@ -269,9 +244,12 @@ QC_PUSH_ONLY="qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_
 #
 # QC_WHOLE_TREE: a gate that needs other files to decide, whether it walks a
 # tree, compares two generated lists, reads a ratchet's baseline or builds a
-# tool. It is the full sweep's: a push to main, release/* or a tag, land-gate
-# and CI run every gate over the whole tree. HELIX_QC_ALL_AT_COMMIT=1 runs them
-# at commit too.
+# tool. The repo-wide lints are here too (qc_code_lint, qc_layering, the test
+# lints, the growth ratchets): a failure they find is a policy breach, not a
+# commit that fails to build or load, and one of them alone would set every
+# commit's wall clock. It is the full sweep's: a push to main, release/* or a
+# tag, land-gate and CI run every gate over the whole tree.
+# HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too.
 QC_PER_FILE="qc_phase1 qc_phase2 qc_xml_schema qc_xml_attr qc_dup_names qc_xml_rules qc_theme_artifacts qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only qc_shellcheck qc_bats_inert qc_design_ratchets"
 QC_WHOLE_TREE="qc_xml_tools qc_xml_linter qc_toolhead_census qc_double_binds qc_design_pixels qc_esp32_app_srcs qc_esp32_stub_coverage qc_esp32_xml_bindings qc_icon_font qc_mdi_codepoints qc_filament_ops_neutral qc_hold_ends_press qc_decl_ui qc_orphan_callbacks qc_layering qc_design_tokens qc_test_mirrors qc_growth_ratchets qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_files qc_translation_packs_fresh qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_code_lint qc_test_lint qc_ui_lint"
 
@@ -301,14 +279,16 @@ done
 # gate is skipped when nothing it inspects was staged. The full run gates
 # nothing, so this can only defer work to the sweep, never drop it.
 #
-# A gate that sets no QC_TRIGGER_<gate> always runs, unless it is push-only.
+# A gate that sets no QC_TRIGGER_<gate> always runs.
 qc_trigger_re() {
   local var="QC_TRIGGER_$1"
   echo "${!var:-}"
 }
 
-# A whole-tree gate a commit left to the full sweep.
+# What a commit did not run, each named for the transcript. Assigned to empty
+# here: an inherited value would join the summary of a run that deferred nothing.
 QC_LEFT_WHOLE=""
+QC_SKIPPED=""
 
 # Every gate has exactly one tier. A gate added to QC_ALL without one would run
 # at a push and never at a commit, or the reverse, by accident: the sweep stops
@@ -334,7 +314,7 @@ qc_wanted() {
   local re
   # HELIX_QC_CHANGED_FROM names a file of changed paths (land-gate's
   # docs-only change): a gate runs when its QC_TRIGGER matches one of them,
-  # or when it has no trigger, as at commit, push-only gates included.
+  # or when it has no trigger, as at commit.
   if [ -n "${HELIX_QC_CHANGED_FROM:-}" ]; then
     re="$(qc_trigger_re "$1")"
     if [ -z "$re" ] || grep -qE "$re" "$HELIX_QC_CHANGED_FROM" 2>/dev/null; then
@@ -350,22 +330,7 @@ qc_wanted() {
       return 1
     fi
   fi
-  # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
-  # land gate and CI, which every branch passes before it reaches main.
-  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then
-    case " $QC_PUSH_ONLY " in
-      *" $1 "*) QC_LEFT="$QC_LEFT $1"; return 1 ;;
-    esac
-  fi
   [ "$STAGED_ONLY" = true ] || return 0
-  case " $QC_PUSH_ONLY " in
-    *" $1 "*)
-      if [ "${HELIX_QC_ALL_AT_COMMIT:-0}" != 1 ]; then
-        QC_DEFERRED="$QC_DEFERRED $1"
-        return 1
-      fi
-      ;;
-  esac
   # A whole-tree gate is the full sweep's; a commit runs the per-file tier.
   if [ "${HELIX_QC_ALL_AT_COMMIT:-0}" != 1 ]; then
     case " $QC_WHOLE_TREE " in
@@ -414,14 +379,6 @@ for fn in $QC_ALL; do
   fi
 done
 
-if [ -n "$QC_DEFERRED" ]; then
-  echo ""
-  echo "⏩ Deferred to pre-push (slow; HELIX_QC_ALL_AT_COMMIT=1 runs them now):$QC_DEFERRED"
-fi
-if [ -n "$QC_LEFT" ]; then
-  echo ""
-  echo "⏩ Left to make land-gate and CI (a work-branch push):$QC_LEFT"
-fi
 if [ -n "$QC_LEFT_WHOLE" ]; then
   echo ""
   echo "⏭️  Whole-tree checks, left to the full sweep (a push to main, release/* or a tag, land-gate, CI):$QC_LEFT_WHOLE"

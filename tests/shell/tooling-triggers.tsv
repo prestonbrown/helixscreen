@@ -159,7 +159,7 @@ tests/shell/test_pytest_asyncio_deps_gate.bats	moonraker-plugin/tests/test_helix
 tests/shell/test_qc_file_cache.bats	scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/check_required_names.py scripts/qc_file_cache.py scripts/ratchet.py scripts/source_strip.py
 tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
-tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
+tests/shell/test_quality_driver.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_quality_tiers.bats	scripts/quality-checks.sh scripts/qc/
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
 tests/shell/test_ratchet_gate.bats	scripts/qc/_lib.sh scripts/qc/design_tokens.sh scripts/quality-checks.sh scripts/ratchet.py

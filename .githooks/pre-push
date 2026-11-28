@@ -98,8 +98,7 @@ for protected_sha in $PROTECTED_SHAS; do
     exit 1
 done
 [ -z "${HELIX_PREPUSH_FULL:-}" ] || WORK_BRANCHES_ONLY=""
-# Set both ways, so a value the caller exported never reaches a full sweep.
-SWEEP_ENV="HELIX_QC_SKIP_PUSH_ONLY=0 HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
+SWEEP_ENV="HELIX_QC_LOG_DIR=$REPO_ROOT/build/qc-logs"
 SWEEP_NOTE="full quality sweep (pre-commit only checked what you staged)"
 
 # shellcheck source=lib/push-range.sh

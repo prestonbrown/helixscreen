@@ -102,7 +102,7 @@ screen() {
 @test "quality-checks runs the rule's gate on every commit, XML or not" {
     contains "qc_xml_rules" "$(grep '^QC_ALL=' scripts/quality-checks.sh)"
     [ -z "$(qc_trigger xml_rules)" ] || fail "qc_xml_rules has a trigger: a commit with no XML must run it too"
-    lacks "qc_xml_rules" "$(grep '^QC_PUSH_ONLY=' scripts/quality-checks.sh)"
+    contains "qc_xml_rules" "$(grep '^QC_PER_FILE=' scripts/quality-checks.sh)"
     lacks "qc_header_actions" "$(grep '^QC_ALL=' scripts/quality-checks.sh)"
     grep -q 'python3 scripts/check_xml_rules.py' scripts/qc/xml_rules.sh || fail "the gate does not run the checker"
 }

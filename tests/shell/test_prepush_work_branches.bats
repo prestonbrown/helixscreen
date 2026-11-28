@@ -12,13 +12,13 @@ HOOK="$BATS_TEST_DIRNAME/../../.githooks/pre-push"
 setup() {
     export HELIX_LAND_GATE_STAMP_DIR="$BATS_TEST_TMPDIR/stamps"
     export HELIX_LAND_GATE_SHARED_STAMP_DIR="$BATS_TEST_TMPDIR/shared-stamps"
-    unset HELIX_PREPUSH_FULL HELIX_PREPUSH_IN_PLACE HELIX_QC_SKIP_PUSH_ONLY
+    unset HELIX_PREPUSH_FULL HELIX_PREPUSH_IN_PLACE
     ROOT="$BATS_TEST_TMPDIR/repo"
     git init -q -b main "$ROOT"
     git -C "$ROOT" config user.email t@t
     git -C "$ROOT" config user.name t
     mkdir -p "$ROOT/scripts" "$ROOT/lib"
-    printf '#!/bin/sh\necho "ran: quality-checks skip_push_only=${HELIX_QC_SKIP_PUSH_ONLY:-unset} logs=$HELIX_QC_LOG_DIR args=[$*]"\n' \
+    printf '#!/bin/sh\necho "ran: quality-checks logs=$HELIX_QC_LOG_DIR args=[$*]"\n' \
         >"$ROOT/scripts/quality-checks.sh"
     chmod +x "$ROOT/scripts/quality-checks.sh"
     local gate
@@ -50,20 +50,19 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     echo dirty >"$ROOT/f" # the isolated path is where the clang gate runs separately
     push refs/heads/main
     [ "$status" -eq 0 ]
-    contains "ran: quality-checks skip_push_only=0" "$output"
+    contains "ran: quality-checks" "$output"
     # No --staged-only: every gate, the whole-tree ones a commit never ran.
-    contains "skip_push_only=0 logs=$(cd "$ROOT" && pwd -P)/build/qc-logs args=[]" "$output"
+    contains "logs=$(cd "$ROOT" && pwd -P)/build/qc-logs args=[]" "$output"
+    lacks "skip_push_only" "$output"
     contains "ran: check_clang_diagnostics" "$output"
 }
 
 @test "a push to a release branch or a tag runs every gate" {
     push refs/heads/release/1.1
     [ "$status" -eq 0 ]
-    contains "skip_push_only=0" "$output"
     contains "args=[]" "$output"
     push refs/tags/v1.2.0
     [ "$status" -eq 0 ]
-    contains "skip_push_only=0" "$output"
     contains "args=[]" "$output"
 }
 
@@ -100,22 +99,13 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
 
 @test "a push that updates a work branch and main together runs every gate" {
     push refs/heads/fix/thing refs/heads/main
-    contains "skip_push_only=0" "$output"
     push refs/heads/main refs/heads/fix/thing
-    contains "skip_push_only=0" "$output"
 }
 
 @test "HELIX_PREPUSH_FULL=1 sweeps a work branch fully" {
     HELIX_PREPUSH_FULL=1 push refs/heads/fix/thing
     [ "$status" -eq 0 ]
-    contains "skip_push_only=0" "$output"
     contains "args=[]" "$output"
-}
-
-@test "an exported HELIX_QC_SKIP_PUSH_ONLY=1 does not reach a push to main" {
-    HELIX_QC_SKIP_PUSH_ONLY=1 push refs/heads/main
-    [ "$status" -eq 0 ]
-    contains "skip_push_only=0" "$output"
 }
 
 @test "a push that would sweep another ref's commit instead of main's is refused" {
@@ -125,7 +115,6 @@ push() { # <remote ref>[=<sha>]...: one stdin line per ref, each pushing TIP (or
     lacks "ran: quality-checks" "$output"
     push refs/heads/fix/thing=$BASE refs/heads/main
     [ "$status" -eq 0 ]
-    contains "skip_push_only=0" "$output"
 }
 
 @test "kept gate logs go to the pushing tree, not the throwaway checkout" {

@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The commit hook (quality-checks.sh --staged-only) runs only the fast gates.
-# The slow ones are listed in QC_PUSH_ONLY and deferred to the pre-push and
-# land-gate runs, which gate nothing; a commit waits for its slowest gate, so one
-# slow gate left in costs every commit.
+# What the commit hook's driver does besides tiering a gate: which repo-wide
+# lints a commit leaves to the full sweep, how it times and fans out its gates,
+# and the compile block only HELIX_QC_ALL_AT_COMMIT=1 runs. A commit waits for
+# its slowest gate, so one repo-wide lint left in costs every commit.
 
 load helpers
 
@@ -13,54 +13,42 @@ setup() {
   QC_TREE=$PWD
 }
 
-# Loads QC_PUSH_ONLY, qc_trigger_re and qc_wanted from the real driver, then runs $2
-# with STAGED_ONLY=$1.
+# Loads the tier lists, qc_trigger_re and qc_wanted from the real driver, then
+# runs $2 with STAGED_ONLY=$1.
 with_driver() {
   bash -c '
     STAGED_ONLY="$1"
     QC_STAGED_ALL="src/foo.cpp"
-    eval "$(grep -E "^QC_(PUSH_ONLY|WHOLE_TREE)=" scripts/quality-checks.sh)"
-    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_DEFERRED=/p; /^QC_LEFT_WHOLE=/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+    eval "$(grep -E "^QC_(PER_FILE|WHOLE_TREE)=" scripts/quality-checks.sh)"
+    eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^QC_SKIPPED=/p; /^QC_LEFT_WHOLE=/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
     eval "$2"
   ' _ "$1" "$2"
 }
 
-@test "a commit defers every push-only gate and names it" {
-  run with_driver true 'for g in $QC_PUSH_ONLY; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
-  [ "$status" -eq 0 ]
+# The eleven repo-wide lints. Each needs the whole tree to decide, and one alone
+# would set every commit's wall clock, so each is a whole-tree gate: a commit
+# leaves it to the full sweep and names it there. The growth ratchets measure a
+# branch, so a commit may add a global call that a later commit on the branch
+# routes through its parameter.
+@test "a commit leaves every repo-wide lint to the full sweep, and names each" {
+  run with_driver true 'for g in qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_app_srcs qc_translation_fmt qc_test_tautology qc_test_widget_registry qc_hold_ends_press qc_growth_ratchets qc_code_lint qc_layering; do qc_wanted "$g" && echo "RAN $g"; case " $QC_LEFT_WHOLE " in *" $g "*) ;; *) echo "UNNAMED $g" ;; esac; done; echo done'
+  [ "$status" -eq 0 ] || fail "$output"
   lacks "RAN " "$output"
-  contains "deferred: qc_decl_ui" "$output"
-  contains "qc_esp32_app_srcs" "$output"
-}
-
-@test "the repo-wide test lints wait for the push" {
-  run with_driver true 'for g in qc_test_tautology qc_test_widget_registry qc_hold_ends_press; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
-  [ "$status" -eq 0 ]
-  lacks "RAN " "$output"
-  contains "deferred: qc_test_tautology qc_test_widget_registry qc_hold_ends_press" "$output"
-}
-
-# The growth ratchets measure a branch: a commit may add a global call that a later
-# commit on the branch routes through its parameter.
-@test "the growth ratchets wait for the push" {
-  run with_driver true 'qc_wanted qc_growth_ratchets && echo "RAN qc_growth_ratchets"; echo "deferred:$QC_DEFERRED"'
-  [ "$status" -eq 0 ]
-  lacks "RAN " "$output"
-  contains "qc_growth_ratchets" "$output"
+  lacks "UNNAMED" "$output"
+  contains "done" "$output"
 }
 
 # Formatting judges each staged file on its own, so a commit meets it at commit.
 # The XML linter, its tool build and the design-token checks need the whole tree,
 # and are the full sweep's.
 @test "formatting still runs at commit; the whole-tree ones wait" {
-  run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"; echo "left:$QC_LEFT_WHOLE"
+  run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "left:$QC_LEFT_WHOLE"
 '
   [ "$status" -eq 0 ]
   contains "RAN qc_phase2" "$output"
   lacks "RAN qc_xml_tools" "$output"
   lacks "RAN qc_xml_linter" "$output"
   lacks "RAN qc_design_pixels" "$output"
-  contains "deferred:[]" "$output"
   contains " qc_xml_tools" "$output"
   contains " qc_xml_linter" "$output"
   contains " qc_design_pixels" "$output"
@@ -92,35 +80,17 @@ now_ms_with_date() {
   [ "$output" = "1700000000000" ] || fail "$output"
 }
 
-@test "HELIX_QC_ALL_AT_COMMIT=1 runs the push-only gates at commit" {
-  run with_driver true 'export HELIX_QC_ALL_AT_COMMIT=1; qc_wanted qc_decl_ui && echo RAN; echo "deferred:[$QC_DEFERRED]"'
+@test "HELIX_QC_ALL_AT_COMMIT=1 runs the repo-wide lints at commit too" {
+  run with_driver true 'export HELIX_QC_ALL_AT_COMMIT=1; qc_wanted qc_decl_ui && echo RAN; echo "left:[$QC_LEFT_WHOLE]"'
   [ "$status" -eq 0 ]
   contains "RAN" "$output"
-  contains "deferred:[]" "$output"
-}
-
-@test "a full run (pre-push, land-gate) defers nothing" {
-  run with_driver false 'for g in $QC_PUSH_ONLY; do qc_wanted "$g" || echo "DEFERRED $g"; done; echo done'
-  [ "$status" -eq 0 ]
-  lacks "DEFERRED" "$output"
+  contains "left:[]" "$output"
 }
 
 @test "a fast gate with no trigger still runs at commit" {
   run with_driver true 'qc_wanted qc_some_fast_gate && echo RAN'
   [ "$status" -eq 0 ]
   contains "RAN" "$output"
-}
-
-@test "every push-only gate is a gate the driver runs" {
-  run bash -c '
-    eval "$(grep "^QC_PUSH_ONLY=" scripts/quality-checks.sh)"
-    eval "$(grep "^QC_ALL=" scripts/quality-checks.sh)"
-    for g in $QC_PUSH_ONLY; do
-      case " $QC_ALL " in *" $g "*) ;; *) echo "NOT IN QC_ALL: $g" ;; esac
-    done; echo checked'
-  [ "$status" -eq 0 ]
-  lacks "NOT IN QC_ALL" "$output"
-  contains "checked" "$output"
 }
 
 # Runs the driver's real fan-out over four gates on two workers with wait -n refused,
@@ -472,10 +442,9 @@ SH
 # A design ratchet judges the lines a change adds, so it is a per-file gate: its
 # warning has to meet the author while the commit body is being written.
 @test "the design ratchets run at commit: their warning belongs on the commit that adds the site" {
-  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"; echo "left:[$QC_LEFT_WHOLE]"
+  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "left:[$QC_LEFT_WHOLE]"
 '
   [ "$status" -eq 0 ]
   contains "RAN" "$output"
-  contains "deferred:[]" "$output"
   contains "left:[]" "$output"
 }

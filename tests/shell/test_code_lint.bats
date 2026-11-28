@@ -2384,10 +2384,10 @@ EOF
     [ "$status" -eq 2 ]
 }
 
-@test "quality-checks.sh runs each code-lint group as its own gate, the source group at push" {
+@test "quality-checks.sh runs each code-lint group as its own gate, the source group in the full sweep" {
     local gate group
     eval "$(grep '^QC_ALL=' scripts/quality-checks.sh)"
-    eval "$(grep '^QC_PUSH_ONLY=' scripts/quality-checks.sh)"
+    eval "$(grep '^QC_WHOLE_TREE=' scripts/quality-checks.sh)"
     for gate in code_lint:src test_lint:tests ui_lint:ui; do
         group=${gate#*:}
         gate=qc_${gate%%:*}
@@ -2395,7 +2395,7 @@ EOF
         grep -q "scripts/code_lint.sh --group $group " "scripts/qc/${gate#qc_}.sh" ||
             fail "$gate does not run the $group group"
     done
-    [[ " $QC_PUSH_ONLY " == *" qc_code_lint "* ]] || fail "qc_code_lint is not push-only"
+    [[ " $QC_WHOLE_TREE " == *" qc_code_lint "* ]] || fail "qc_code_lint is not a whole-tree gate: a commit would wait for it"
 }
 
 @test "a failing lint fails its quality-checks gate" {
