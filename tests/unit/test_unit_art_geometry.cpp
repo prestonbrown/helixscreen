@@ -129,6 +129,24 @@ TEST_CASE("unit art geometry: a spool is every flange disc between its two flang
     CHECK(art_lane_coverage(g, x, y, 0.5f, k) == Approx(0.5f).margin(1e-3));
 }
 
+TEST_CASE("unit art geometry: a flange's distance is measured from its own center",
+          "[unit-art][geometry]") {
+    const ArtLaneGeom& g = unit_art_geometry("box_turtle", 4)->lane[1];
+    CHECK(art_lane_flange_distance(g, g.near_x, g.near_y, true) == Approx(0.0f).margin(1e-5));
+    CHECK(art_lane_flange_distance(g, g.far_x, g.far_y, false) == Approx(0.0f).margin(1e-5));
+    // The other flange's center is a whole spool away, not on this disc.
+    CHECK(art_lane_flange_distance(g, g.far_x, g.far_y, true) > 1.0f);
+    CHECK(art_lane_flange_distance(g, g.near_x, g.near_y, false) > 1.0f);
+    // A point one basis step along ey is one radius out.
+    CHECK(art_lane_flange_distance(g, g.near_x + g.ey_x, g.near_y + g.ey_y, true) ==
+          Approx(1.0f).margin(1e-4));
+    // A flange basis with no area has no disc to measure against.
+    ArtLaneGeom flat = g;
+    flat.ez_x = flat.ey_x;
+    flat.ez_y = flat.ey_y;
+    CHECK(std::isinf(art_lane_flange_distance(flat, g.near_x, g.near_y, true)));
+}
+
 TEST_CASE("unit art geometry: a face turned positively carries its front edge down",
           "[unit-art][spool_spin]") {
     // A quarter turn from the back toward up: the front edge (u = -1) now shows what stood at
