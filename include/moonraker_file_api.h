@@ -34,9 +34,6 @@ namespace helix {
 // Forward declaration
 class IMoonrakerClient;
 
-// Test seam (tests/test_helpers/moonraker_file_api_test_access.h)
-class MoonrakerFileApiTestAccess;
-
 /**
  * @brief Parse a server.files.roots response into FileRoot entries
  *
@@ -180,6 +177,13 @@ class MoonrakerFileAPI : public helix::IFilesAPI {
     void metascan_file(const std::string& filename, FileMetadataCallback on_success,
                        ErrorCallback on_error, bool silent = true) override;
 
+    /// Where the metascan cooldown reads the time. Null reads the steady clock.
+    /// A test moves the clock instead of waiting out the ten-minute cooldown.
+    /// Set it before the first scan; the gate's mutex orders it against the
+    /// gate's reads.
+    using MetascanClock = std::chrono::steady_clock::time_point (*)();
+    void set_metascan_clock(MetascanClock clock);
+
     void get_archive_conversions(ArchiveConversionsCallback on_success,
                                  ErrorCallback on_error) override;
 
@@ -254,8 +258,6 @@ class MoonrakerFileAPI : public helix::IFilesAPI {
     FileMetadata parse_file_metadata(const json& response);
 
   private:
-    friend class helix::MoonrakerFileApiTestAccess;
-
     /**
      * @brief Single-flight gate for server.files.metascan
      *
@@ -280,4 +282,9 @@ class MoonrakerFileAPI : public helix::IFilesAPI {
     /// mutex held, at most once per accepted scan, so the map stays bounded by
     /// files scanned recently rather than by everything touched this session.
     void prune_expired_metascan_cooldown_locked(std::chrono::steady_clock::time_point now);
+
+    MetascanClock metascan_clock_ = nullptr;
+    /// The gate's time: the clock set for a test, or the steady clock. Called
+    /// with the gate mutex held.
+    [[nodiscard]] std::chrono::steady_clock::time_point metascan_now_locked() const;
 };

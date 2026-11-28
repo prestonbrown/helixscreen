@@ -211,6 +211,15 @@ void MoonrakerFileAPI::get_archive_conversions(ArchiveConversionsCallback on_suc
         true); // silent: a printer without the converter answers an error
 }
 
+void MoonrakerFileAPI::set_metascan_clock(MetascanClock clock) {
+    std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
+    metascan_clock_ = clock;
+}
+
+std::chrono::steady_clock::time_point MoonrakerFileAPI::metascan_now_locked() const {
+    return metascan_clock_ ? metascan_clock_() : std::chrono::steady_clock::now();
+}
+
 void MoonrakerFileAPI::metascan_file(const std::string& filename, FileMetadataCallback on_success,
                                      ErrorCallback on_error, bool silent) {
     // Validate filename path
@@ -223,14 +232,14 @@ void MoonrakerFileAPI::metascan_file(const std::string& filename, FileMetadataCa
     bool suppressed = false;
     {
         std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
-        prune_expired_metascan_cooldown_locked(std::chrono::steady_clock::now());
+        const auto now = metascan_now_locked();
+        prune_expired_metascan_cooldown_locked(now);
         if (metascan_in_flight_.count(key) != 0) {
             spdlog::debug("[FileAPI] Metascan already in flight for {}, dropping duplicate",
                           filename);
             suppressed = true;
         } else if (auto it = metascan_cooldown_until_.find(key);
-                   it != metascan_cooldown_until_.end() &&
-                   std::chrono::steady_clock::now() < it->second) {
+                   it != metascan_cooldown_until_.end() && now < it->second) {
             spdlog::debug("[FileAPI] Metascan for {} inside completion cooldown, skipping",
                           filename);
             suppressed = true;
@@ -261,7 +270,7 @@ void MoonrakerFileAPI::metascan_file(const std::string& filename, FileMetadataCa
     auto finish = [this, key]() {
         std::lock_guard<std::mutex> lock(metascan_gate_mutex_);
         metascan_in_flight_.erase(key);
-        metascan_cooldown_until_[key] = std::chrono::steady_clock::now() + kMetascanRescanCooldown;
+        metascan_cooldown_until_[key] = metascan_now_locked() + kMetascanRescanCooldown;
     };
 
     json params = {{"filename", filename}};
