@@ -100,6 +100,33 @@ run_gate() {
 # is the only thing that separates them, so an empty scan is a hard error and
 # NOT a pass.
 
+@test "lists the references on one line in one order, whatever the hash seed" {
+    # Three instance sites in one tag feed three <icon src="$param"> tags, so the
+    # listing ties on file and line. A tie left to insertion order follows the
+    # hash seed through the set of parameter names.
+    write_xml widget '<component>
+  <api>
+    <prop name="a" type="string" default="alert"/>
+    <prop name="b" type="string" default="check_circle"/>
+    <prop name="c" type="string" default="info"/>
+  </api>
+  <view><icon src="$a"/><icon src="$b"/><icon src="$c"/></view>
+</component>'
+    write_xml page '<component><view><widget a="wun" b="two" c="three"/></view></component>'
+    local seed first
+    for seed in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+        run env PYTHONHASHSEED="$seed" python3 $GATE --root "$FIXTURE" --list
+        [ "$status" -eq 1 ] || fail "expected exit 1, got $status: $output"
+        if [ -z "${first:-}" ]; then first="$output"; fi
+        [ "$output" = "$first" ] || fail "seed $seed lists the line's references differently: $output"
+    done
+    # The three unregistered names are all reported, from that one line.
+    contains "page.xml:1" "$first"
+    contains "wun" "$first"
+    contains "two" "$first"
+    contains "three" "$first"
+}
+
 @test "reports the corpus size so a silent scan is visible" {
     write_xml panel '<component><view><icon src="alert"/></view></component>'
     run_gate

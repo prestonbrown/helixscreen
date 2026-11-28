@@ -688,6 +688,17 @@ def is_literal(value: str) -> bool:
     return bool(value) and "$" not in value and "#" not in value
 
 
+def listing_order(row) -> tuple:
+    """Where a reference comes in a listing: by file, line, name, then how.
+
+    Two references can share a line (two instance sites in one tag), and a tie
+    left to insertion order follows the hash seed through the set of parameter
+    names a component feeds its icons.
+    """
+    name, path, line, how = row
+    return (str(path), line, name, how)
+
+
 def icon_names(run: Run) -> int:
     root = run.root(RULES["icon-names"])
     codepoints = root / "include" / "ui_icon_codepoints.h"
@@ -753,7 +764,7 @@ def icon_names(run: Run) -> int:
     everything = direct + prop_defaults + instance_sites
 
     if run.list_mode:
-        for name, path, line, how in sorted(everything, key=lambda r: (str(r[1]), r[2])):
+        for name, path, line, how in sorted(everything, key=listing_order):
             mark = "ok " if name in known else "BAD"
             print(f"{mark} {name:28} {path}:{line} ({how})")
 
@@ -784,7 +795,7 @@ def icon_names(run: Run) -> int:
         return 0
 
     print(f"\n❌ {len(bad)} icon name(s) are not in {codepoints.name}:\n", file=sys.stderr)
-    for name, path, line, how in sorted(bad, key=lambda r: (str(r[1]), r[2])):
+    for name, path, line, how in sorted(bad, key=listing_order):
         print(f"   {path}:{line}  {how}  '{name}'", file=sys.stderr)
     print(
         "\nEach renders image_broken_variant at runtime with only a log warning.\n"
