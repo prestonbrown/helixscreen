@@ -239,6 +239,7 @@ assert_judged_on_staged_file() {
 }
 
 @test "a staged token edit regenerates the token table into the index" {
+    needs_venv
     stage "$XML_TOKENS" a-token.xml
     fixture a-token.xml > "$XML_TOKENS"
 
@@ -266,6 +267,7 @@ slow_git() {
 }
 
 @test "one commit that wakes both artifact gates stages both" {
+    needs_venv
     # A token edit wakes qc_theme_artifacts by its path and qc_xml_schema by the
     # added definition. Both write the index, in the fan-out at the same time.
     slow_git
@@ -295,6 +297,7 @@ HOOK
 }
 
 @test "git commit -- <paths> hands the hook a temporary index, and both writes land in the commit" {
+    needs_venv
     # That index is .git/next-index-<pid>.lock, so its lock ends in .lock.lock:
     # git's refusal names it, and the retry has to read that name too.
     slow_git
@@ -337,6 +340,7 @@ lock_waiter() (
 }
 
 @test "the token table is regenerated in the index alone when the working copy holds unstaged edits" {
+    needs_venv
     stage "$XML_TOKENS" a-token.xml
     fixture a-token.xml > "$XML_TOKENS"
     printf '// unstaged\n' >> "$TABLE"
@@ -351,8 +355,9 @@ lock_waiter() (
     lacks "// unstaged" "$(staged "$TABLE")"
 }
 
-# clang-format and the XML formatter come from the venv; without it the driver
-# cannot format, and the cases that need one say so rather than pass for free.
+# clang-format and the XML formatter come from the venv. Without it the hook fails
+# at the format check, so every case that needs the hook to pass says so and
+# skips, rather than fail for a reason that is not what it pins.
 needs_venv() {
     [ -x "$REPO/.venv/bin/clang-format" ] || skip "no pinned clang-format in .venv"
 }
