@@ -49,11 +49,13 @@ class FanDial {
             int initial_speed = 0, bool label_bottom = false, const std::string& hold_index = {});
     ~FanDial();
 
-    // Disable copy, allow move
+    // A dial stays where it was built: its label animation and its debounce
+    // timer each name the instance they were started for, and every owner
+    // holds it by a unique_ptr. So it can be neither copied nor moved.
     FanDial(const FanDial&) = delete;
     FanDial& operator=(const FanDial&) = delete;
-    FanDial(FanDial&& other) noexcept;
-    FanDial& operator=(FanDial&& other) noexcept;
+    FanDial(FanDial&&) = delete;
+    FanDial& operator=(FanDial&&) = delete;
 
     /**
      * @brief Set speed from external source (e.g., printer state update)
