@@ -378,6 +378,15 @@ namespace detail {
 /// standard library has no floating-point from_chars, and on the ESP32, where
 /// libstdc++'s from_chars links about 20KB of tables the image has no room for.
 std::optional<double> parse_double_strtod(std::string_view s);
+
+/// The longest floating-point prefix of @p text, read through the locale-mapped
+/// strtod (strtof when @p single). consumed is 0 when there is no number.
+struct FloatScan {
+    double value;
+    size_t consumed;
+    bool out_of_range;
+};
+FloatScan scan_float(std::string_view text, bool single);
 } // namespace detail
 
 // Scanning helpers: read several fields off one line, scanf-style.
@@ -439,19 +448,23 @@ std::optional<T> scan_number(std::string_view& s, int base = 10, size_t max_widt
     static_assert(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>);
     std::string_view rest = s;
     skip_ws(rest);
-    const std::string buf(rest.substr(0, max_width)); // strto* reads up to a terminator
-    const char* begin = buf.c_str();
-    char* end = nullptr;
-    errno = 0;
+    const std::string_view field = rest.substr(0, max_width);
+    size_t consumed = 0;
     std::optional<T> out;
     if constexpr (std::is_floating_point_v<T>) {
         static_assert(!std::is_same_v<T, long double>);
-        const T v = std::is_same_v<T, float> ? std::strtof(begin, &end) : std::strtod(begin, &end);
-        if (end != begin && errno != ERANGE) {
-            out = v;
+        const auto scan = detail::scan_float(field, std::is_same_v<T, float>);
+        consumed = scan.consumed;
+        if (scan.consumed != 0 && !scan.out_of_range) {
+            out = static_cast<T>(scan.value);
         }
     } else if constexpr (std::is_signed_v<T>) {
+        const std::string buf(field); // strto* reads up to a terminator
+        const char* begin = buf.c_str();
+        char* end = nullptr;
+        errno = 0;
         const long long v = std::strtoll(begin, &end, base);
+        consumed = static_cast<size_t>(end - begin);
         if (end != begin && errno != ERANGE && v >= std::numeric_limits<T>::min() &&
             v <= std::numeric_limits<T>::max()) {
             out = static_cast<T>(v);
@@ -461,14 +474,19 @@ std::optional<T> scan_number(std::string_view& s, int base = 10, size_t max_widt
         // the maximum rather than an error, as std::stoul and std::stoull return.
         using Wide = std::conditional_t<(sizeof(T) <= sizeof(unsigned long)), unsigned long,
                                         unsigned long long>;
+        const std::string buf(field);
+        const char* begin = buf.c_str();
+        char* end = nullptr;
+        errno = 0;
         const Wide v = std::is_same_v<Wide, unsigned long> ? std::strtoul(begin, &end, base)
                                                            : std::strtoull(begin, &end, base);
+        consumed = static_cast<size_t>(end - begin);
         if (end != begin && errno != ERANGE && v <= std::numeric_limits<T>::max()) {
             out = static_cast<T>(v);
         }
     }
     if (out) {
-        rest.remove_prefix(static_cast<size_t>(end - begin));
+        rest.remove_prefix(consumed);
         s = rest;
     }
     return out;

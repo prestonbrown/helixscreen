@@ -722,7 +722,7 @@ TEST_CASE("signed_adjustment_minutes follows scanf's \"%7s %d:%d\" shape",
     CHECK(minutes("CW 01:30") == 90);
     CHECK(minutes("CCW 00:15") == -15);
     CHECK(minutes("  CW   1: 5 trailing") == 65);
-    CHECK(minutes("CW 00:-5") == -5 + 0);
+    CHECK(minutes("CW 00:-5") == -5);
 
     CHECK_FALSE(minutes("").has_value());
     CHECK_FALSE(minutes("CW").has_value());

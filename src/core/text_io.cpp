@@ -224,7 +224,29 @@ std::string_view without_plus(std::string_view s) {
     return s;
 }
 
+// strtod reads the active LC_NUMERIC decimal point, so the input's '.' is mapped
+// onto that point; the buffer keeps its length, so offsets into it stay valid.
+void map_decimal_point(std::string& buf) {
+    const char locale_point = *std::localeconv()->decimal_point;
+    if (locale_point != '.') {
+        std::replace(buf.begin(), buf.end(), '.', locale_point);
+    }
+}
+
 } // namespace
+
+detail::FloatScan detail::scan_float(std::string_view text, bool single) {
+    std::string buf(text); // strto* reads up to a terminator
+    map_decimal_point(buf);
+    char* end = nullptr;
+    errno = 0;
+    FloatScan out;
+    out.value = single ? static_cast<double>(std::strtof(buf.c_str(), &end))
+                       : std::strtod(buf.c_str(), &end);
+    out.consumed = static_cast<size_t>(end - buf.c_str());
+    out.out_of_range = errno == ERANGE;
+    return out;
+}
 
 std::optional<double> detail::parse_double_strtod(std::string_view s) {
     s = without_plus(s);
@@ -245,10 +267,7 @@ std::optional<double> detail::parse_double_strtod(std::string_view s) {
     if (buf.find_first_of("xX") != std::string::npos) {
         return std::nullopt;
     }
-    const char locale_point = *std::localeconv()->decimal_point;
-    if (locale_point != '.') {
-        std::replace(buf.begin(), buf.end(), '.', locale_point);
-    }
+    map_decimal_point(buf);
     char* end = nullptr;
     errno = 0;
     double value = std::strtod(buf.c_str(), &end);

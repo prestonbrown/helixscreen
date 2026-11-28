@@ -784,3 +784,30 @@ TEST_CASE("scan_word takes up to max_width non-blank characters", "[text_io][sca
     CHECK_FALSE(scan_word(none, 3).has_value());
     CHECK(none == "   ");
 }
+
+TEST_CASE("scan_number reads '.' as the decimal point under a comma locale", "[text_io][scan]") {
+    const char* prev = std::setlocale(LC_NUMERIC, nullptr);
+    const std::string saved = prev ? prev : "C";
+    const char* const kCommaLocales[] = {"de_DE.UTF-8", "de_DE.utf8", "fr_FR.UTF-8",
+                                         "fr_FR.utf8",  "de_DE",      "fr_FR"};
+    bool switched = false;
+    for (const char* name : kCommaLocales) {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+            switched = *std::localeconv()->decimal_point == ',';
+            if (switched) {
+                break;
+            }
+        }
+    }
+    if (!switched) {
+        std::setlocale(LC_NUMERIC, saved.c_str());
+        SKIP("no comma-decimal locale installed");
+    }
+    std::string_view d = "1.5,2.25";
+    CHECK(helix::text_io::scan_number<double>(d) == Catch::Approx(1.5));
+    CHECK(d == ",2.25");
+    std::string_view f = "-0.5x";
+    CHECK(helix::text_io::scan_number<float>(f) == Catch::Approx(-0.5f));
+    CHECK(f == "x");
+    std::setlocale(LC_NUMERIC, saved.c_str());
+}

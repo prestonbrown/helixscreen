@@ -1259,13 +1259,19 @@ TEST_CASE("CFS overview cards stay in address order around an absent box",
     CHECK(info.units[static_cast<size_t>(order[1])].absent);
 }
 
-TEST_CASE("CFS echo lines parse by scanf's rules, all or nothing (#1282)", "[ams][cfs][calib]") {
+TEST_CASE("CFS echo lines parse by scanf's rules, all or nothing (#2165)", "[ams][cfs][calib]") {
     double x = -1.0, y = -2.0;
     SECTION("negative values, loose spacing, trailing text") {
         REQUIRE(
             AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=-1.5   y= 2e1 ok", x, y));
         CHECK(x == Catch::Approx(-1.5));
         CHECK(y == Catch::Approx(20.0));
+    }
+    SECTION("the SAVE_BOX_CFG spelling yields both coordinates") {
+        REQUIRE(AmsBackendCfs::parse_chute_save_line(
+            "SAVE_BOX_CFG ok: extrude_pos_x=184.5,extrude_pos_y=-304.0", x, y));
+        CHECK(x == Catch::Approx(184.5));
+        CHECK(y == Catch::Approx(-304.0));
     }
     SECTION("a line missing y leaves both outputs alone") {
         CHECK_FALSE(AmsBackendCfs::parse_chute_save_line("cmd_save_extrude_pos x=184.5 y=", x, y));
