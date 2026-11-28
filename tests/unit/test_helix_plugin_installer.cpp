@@ -17,7 +17,6 @@
 #include "../../include/config.h"
 #include "../../include/helix_plugin_installer.h"
 #include "../../include/helix_version.h"
-#include "../test_helpers/helix_plugin_installer_test_access.h"
 #include "../test_helpers/install_tree_fixture.h"
 #include "../test_helpers/plugin_script_sandbox.h"
 #include "../test_helpers/scoped_board.h"
@@ -465,7 +464,7 @@ TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs fro
     helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
     helix::HelixPluginInstaller installer;
     const auto run_from = [&](const std::filesystem::path& exe) {
-        helix::HelixPluginInstallerTestAccess::set_running_exe(installer, exe.string(), tree.root);
+        installer.set_running_exe(exe.string(), tree.root);
     };
 
     SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {

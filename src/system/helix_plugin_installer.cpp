@@ -343,6 +343,19 @@ void HelixPluginInstaller::set_websocket_url(const std::string& url) {
     websocket_url_ = url;
 }
 
+void HelixPluginInstaller::set_script_search_root(const std::string& root) {
+    script_search_root_ = root;
+}
+
+void HelixPluginInstaller::set_running_exe(const std::string& exe, const std::string& probe_root) {
+    running_exe_override_ = exe;
+    probe_root_ = probe_root;
+}
+
+void HelixPluginInstaller::set_script_timeout_seconds(int seconds) {
+    script_timeout_seconds_ = seconds;
+}
+
 bool HelixPluginInstaller::is_local_moonraker() const {
     if (websocket_url_.empty()) {
         return false;

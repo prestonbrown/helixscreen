@@ -107,6 +107,33 @@ class HelixPluginInstaller {
      * Normally derived from IMoonrakerAPI, but can be set directly for testing.
      */
     void set_websocket_url(const std::string& url);
+    // Where install.sh is found and how long it may run. The running app leaves
+    // all three alone, and a test that reaches the script sets its own, since the
+    // shipped install.sh edits moonraker.conf. Main thread only, as every reader
+    // is: a lookup copies what a worker needs (a LocalInstallJob, or the script
+    // path a self-heal captures), so a change during an install touches nothing
+    // in flight.
+    /**
+     * @brief Look for install.sh under @p root, and nowhere else
+     *
+     * Until this is called, install.sh is looked up beside the executable, in the
+     * install root resolved from it and in the share dirs. An empty root is that
+     * lookup.
+     */
+    void set_script_search_root(const std::string& root);
+    /**
+     * @brief The executable the install root is resolved from
+     *
+     * @p probe_root is where a firmware's package is probed under. Until this is
+     * called, the executable is this process's and the root is "/".
+     */
+    void set_running_exe(const std::string& exe, const std::string& probe_root);
+    /**
+     * @brief How long install.sh may run before it is killed
+     *
+     * Sixty seconds until this is called.
+     */
+    void set_script_timeout_seconds(int seconds);
 
     // === Detection ===
 
@@ -299,6 +326,9 @@ class HelixPluginInstaller {
     [[nodiscard]] bool is_installing() const;
 
   private:
+    /// Reaches the two process-wide prompt flags, which in the running app
+    /// only a new process clears: a test that stands for the app starting
+    /// again clears them itself.
     friend struct HelixPluginInstallerTestAccess;
 
     IMoonrakerAPI* api_ = nullptr;
@@ -308,8 +338,8 @@ class HelixPluginInstaller {
     // Where install.sh is looked for. Empty means beside the executable, plus the
     // system share dir; a set root is searched alone, so nothing outside it runs.
     std::string script_search_root_;
-    // Tests only: the executable path, and the root the firmware package is probed
-    // under, that the install root is resolved from. Empty means /proc/self/exe.
+    // The executable path, and the root the firmware package is probed under,
+    // that the install root is resolved from. Empty means /proc/self/exe.
     std::string running_exe_override_;
     std::string probe_root_ = "/";
     // How long install.sh may run before it is killed.
@@ -323,8 +353,8 @@ class HelixPluginInstaller {
     static PromptClock prompt_clock_;
     static AddonCheck addon_check_;
     static int64_t read_prompt_clock();
-    /// The executable the install root is resolved from: the test override, or
-    /// this process. Empty when it cannot be read.
+    /// The executable the install root is resolved from: the one set_running_exe()
+    /// set, or this process. Empty when it cannot be read.
     [[nodiscard]] std::string running_exe() const;
 };
 
