@@ -1050,16 +1050,18 @@ gate without one:
 
 | Tier | List | Runs |
 |------|------|------|
-| Per-file | `QC_PER_FILE` (16 gates) | at a commit (`--staged-only`), each on the staged content as the commit will hold it and behind its `QC_TRIGGER_qc_<gate>`; and in every full sweep |
-| Whole-tree | `QC_WHOLE_TREE` (43 gates) | in every full sweep only: a push to `main`, `release/*` or a tag, `make land-gate`, CI |
+| Per-file | `QC_PER_FILE` (17 gates) | at a commit (`--staged-only`), each on the staged content as the commit will hold it and behind its `QC_TRIGGER_qc_<gate>`; and in every full sweep |
+| Whole-tree | `QC_WHOLE_TREE` (42 gates) | in every full sweep only: a push to `main`, `release/*` or a tag, `make land-gate`, CI |
 
 A gate belongs in the per-file tier when it judges each staged file on its own: formatting,
 copyright headers, whitespace, XML well-formedness, the pattern rules that read one file, the
 XML rules. One that needs other files to decide, a tree walk, a generated list, a ratchet's
 baseline or a built tool, is whole-tree. The whole-tree gates that used to run at a commit
 when their inputs were staged (`qc_toolhead_census`, `qc_double_binds`,
-`qc_theme_artifacts`, `qc_xml_linter` with `qc_xml_tools`, the design ratchets, the
-translation gates, `qc_cjk_fonts` among them) now first run at a push to `main`.
+`qc_theme_artifacts`, `qc_xml_linter` with `qc_xml_tools`, the
+translation gates, `qc_cjk_fonts` among them) now first run at a push to `main`. The design
+ratchets stay at a commit: their warning has to meet the author while the commit body is
+being written.
 
 At a commit the driver writes the staged files' content from the index to a scratch directory
 and the per-file gates read them there (`qc_read_path`, `scripts/qc/_lib.sh`), so a file edited
@@ -1118,9 +1120,8 @@ or at the gate and need no grant line; the last two warn through `qc_ratchet_ver
 
 **Design:** namespace, layering, vendor branches, hand-rolled swatches, imperative UI,
 orphan subjects, overlay boilerplate, raw widget pointers, LVGL 9.6 names, work markers and
-comment SHAs. `qc_design_ratchets` runs `scripts/design_ratchets.py` at every full sweep (the
-fork point onward): it needs a branch and its base, so a commit does not run it. For each
-rule a change grows it
+comment SHAs. `qc_design_ratchets` runs `scripts/design_ratchets.py` at commit (the staged
+lines) and at every full sweep (the fork point onward). For each rule a change grows it
 prints a block naming the rule, why it exists, its doc and each new `file:line`, and the
 driver repeats the blocks beside the final verdict. A site counts only when it sits on a
 line the change adds, so old debt in a touched file stays quiet. The warning asks for the

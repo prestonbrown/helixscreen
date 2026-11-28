@@ -254,15 +254,17 @@ QC_PUSH_ONLY="qc_decl_ui qc_translation_coverage qc_esp32_xml_bindings qc_esp32_
 #
 # QC_PER_FILE: a gate that judges each staged file on its own, and reads that
 # file as the commit will hold it (QC_STAGED_DIR holds the staged content). A
-# commit is as long as these.
+# commit is as long as these. The design ratchets are here on purpose: their
+# warning has to meet the author while the commit body is being written, so
+# the Ratchet: reason lands in that commit.
 #
 # QC_WHOLE_TREE: a gate that needs other files to decide, whether it walks a
 # tree, compares two generated lists, reads a ratchet's baseline or builds a
 # tool. It is the full sweep's: a push to main, release/* or a tag, land-gate
 # and CI run every gate over the whole tree. HELIX_QC_ALL_AT_COMMIT=1 runs them
 # at commit too.
-QC_PER_FILE="qc_phase1 qc_phase2 qc_xml_attr qc_dup_names qc_xml_rules qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only qc_shellcheck qc_bats_inert"
-QC_WHOLE_TREE="qc_xml_tools qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_double_binds qc_design_pixels qc_esp32_app_srcs qc_esp32_stub_coverage qc_esp32_xml_bindings qc_icon_font qc_mdi_codepoints qc_filament_ops_neutral qc_hold_ends_press qc_decl_ui qc_orphan_callbacks qc_design_ratchets qc_layering qc_design_tokens qc_test_mirrors qc_growth_ratchets qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_files qc_translation_packs_fresh qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_code_lint qc_test_lint qc_ui_lint"
+QC_PER_FILE="qc_phase1 qc_phase2 qc_xml_attr qc_dup_names qc_xml_rules qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only qc_shellcheck qc_bats_inert qc_design_ratchets"
+QC_WHOLE_TREE="qc_xml_tools qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_double_binds qc_design_pixels qc_esp32_app_srcs qc_esp32_stub_coverage qc_esp32_xml_bindings qc_icon_font qc_mdi_codepoints qc_filament_ops_neutral qc_hold_ends_press qc_decl_ui qc_orphan_callbacks qc_layering qc_design_tokens qc_test_mirrors qc_growth_ratchets qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_files qc_translation_packs_fresh qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_code_lint qc_test_lint qc_ui_lint"
 
 # Gates whose answer depends only on the files their QC_TRIGGER matches, judged
 # file by file or from those files alone. make land-gate names its change in

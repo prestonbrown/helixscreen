@@ -73,7 +73,7 @@ with_driver() {
   run with_driver true 'n=0; for g in $QC_WHOLE_TREE; do qc_wanted "$g" && echo "RAN $g" || n=$((n + 1)); done; echo "not run: $n of $(echo $QC_WHOLE_TREE | wc -w)"; echo "left:$QC_LEFT_WHOLE"; echo "deferred:$QC_DEFERRED"'
   [ "$status" -eq 0 ] || fail "$output"
   lacks "RAN " "$output"
-  contains "not run: 43 of 43" "$output"
+  contains "not run: 42 of 42" "$output"
   contains " qc_orphan_callbacks" "$output"
   contains " qc_feature_gates" "$output"
   contains " qc_test_lint" "$output"
@@ -96,6 +96,13 @@ with_driver() {
   for g in qc_phase1 qc_phase2 qc_mem_safety qc_null_safety qc_l081 qc_net_pii qc_head_labels qc_constant_naming qc_comment_archaeology qc_lvgl_subject_api qc_spdlog_only; do
     contains "RAN $g" "$output"
   done
+}
+
+@test "the design ratchets are a per-file gate: a commit meets their warning while writing its body" {
+  run with_driver true 'qc_wanted qc_design_ratchets && echo "RAN qc_design_ratchets"; echo "left:[$QC_LEFT_WHOLE]"'
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "RAN qc_design_ratchets" "$output"
+  contains "left:[]" "$output"
 }
 
 @test "a commit still skips a per-file gate when nothing it inspects is staged" {

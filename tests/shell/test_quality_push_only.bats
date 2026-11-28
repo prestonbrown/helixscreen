@@ -466,14 +466,13 @@ SH
   contains "summary: 2 compiled, 0 skipped, 1 failed" "$output"
 }
 
-# A design ratchet compares a branch with its base, so it needs more than the
-# staged files: the full sweep names each new site, where a landing and CI
-# read it.
-@test "the design ratchets wait for the full sweep, like every whole-tree gate" {
-  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"; echo "left:$QC_LEFT_WHOLE"
+# A design ratchet judges the lines a change adds, so it is a per-file gate: its
+# warning has to meet the author while the commit body is being written.
+@test "the design ratchets run at commit: their warning belongs on the commit that adds the site" {
+  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"; echo "left:[$QC_LEFT_WHOLE]"
 '
   [ "$status" -eq 0 ]
-  lacks "RAN" "$output"
+  contains "RAN" "$output"
   contains "deferred:[]" "$output"
-  contains "left: qc_design_ratchets" "$output"
+  contains "left:[]" "$output"
 }
