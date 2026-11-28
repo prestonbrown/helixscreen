@@ -1,15 +1,18 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_lvgl_subject_api.py: the wall keeping every LVGL subject on
-# helix::Subject (include/core/subject.h).
+# Meta-tests for the lvgl-subject-api rule of scripts/check_source_rules.py: the wall keeping
+# every LVGL subject on helix::Subject (include/core/subject.h).
 #
 # The quiet half matters as much as the loud one: lv_subject_t* and lv_subject_t& appear
 # at nearly every subject call site, and a gate that counted them would be switched off.
 
 load helpers
 
-GATE="scripts/check_lvgl_subject_api.py"
+GATE="scripts/check_source_rules.py --rule lvgl-subject-api"
+# The rule, the modules it imports and the gate's wrapper, as a fixture tree holds them
+# for a run of the wrapper.
+WRAPPER_FILES="scripts/check_source_rules.py scripts/source_strip.py scripts/staged_content.py scripts/path_scope.py scripts/qc/_lib.sh scripts/qc/lvgl_subject_api.sh"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -18,13 +21,28 @@ setup() {
 }
 
 run_gate() {
-    run python3 "$GATE" --root "$ROOT"
+    run python3 $GATE --root "$ROOT"
 }
 
-# The site count the gate's --list reports for the fixture tree.
+# The rule holds $1 site(s) for the fixture tree: --max-allowed one below that fails
+# it, and $1 lets it pass. A line is listed once however many sites it holds, so the
+# count is read off the verdict and not off the listing.
 expect_sites() {
-    run python3 "$GATE" --root "$ROOT" --list
-    contains "$1 site(s) in 1 file(s)." "$output"
+    run python3 $GATE --root "$ROOT" --max-allowed "$1"
+    [ "$status" -eq 0 ] || fail "expected $1 site(s) to be allowed: $output"
+    run python3 $GATE --root "$ROOT" --max-allowed "$(($1 - 1))"
+    [ "$status" -eq 1 ] || fail "expected $1 site(s), and one more was allowed: $output"
+}
+
+# The gate's wrapper over the fixture tree: `false` judges the tree, `true` the staged blobs.
+run_wrapper() {
+    local f
+    for f in $WRAPPER_FILES; do
+        mkdir -p "$ROOT/$(dirname "$f")"
+        cp "$f" "$ROOT/$f"
+    done
+    mkdir -p "$ROOT/qc-tmp"
+    run bash -c '. "$1/scripts/qc/_lib.sh"; . "$1/scripts/qc/lvgl_subject_api.sh"; STAGED_ONLY="$2"; QC_TMP="$1/qc-tmp"; cd "$1" && qc_lvgl_subject_api' _ "$ROOT" "$1"
 }
 
 # ------------------------------------------------------------- the loud half
@@ -129,7 +147,42 @@ CPP
     printf 'helix::Subject count_;\nlv_subject_set_int(&count_, 1);\n' > "$ROOT/src/x.cpp"
     run_gate
     [ "$status" -eq 0 ] || fail "a clean tree failed: $output"
-    contains "OK:" "$output"
+    [ -z "$output" ] || fail "a passing rule printed something: $output"
+    run_wrapper false
+    [ "$status" -eq 0 ] || fail "the wrapper failed a clean tree: $output"
+    contains "OK: no deprecated subject call or by-value lv_subject_t." "$output"
+}
+
+@test "the wrapper prints the rule's sites under its message and names the listing command" {
+    printf 'lv_subject_t bad_;\n' > "$ROOT/src/x.cpp"
+    run_wrapper false
+    [ "$status" -eq 1 ] || fail "the wrapper passed a site: $output"
+    contains "src/x.cpp:1: storage" "$output"
+    contains "FAIL: an LVGL subject set up through the deprecated API or held by value." "$output"
+    contains "Declare it helix::Subject (include/core/subject.h)" "$output"
+    contains "SUBJECT_API_OK: <reason>" "$output"
+    contains "Run: python3 scripts/check_source_rules.py --rule lvgl-subject-api --max-allowed 1000000" "$output"
+    run python3 scripts/check_source_rules.py --rule lvgl-subject-api --max-allowed 1000000 --root "$ROOT"
+    [ "$status" -eq 0 ] || fail "the listing command failed: $output"
+    contains "src/x.cpp:1: storage" "$output"
+}
+
+@test "the wrapper at commit judges the staged blobs, and the tree at push" {
+    git -C "$ROOT" init -q
+    git -C "$ROOT" config user.email t@t
+    git -C "$ROOT" config user.name t
+    printf 'helix::Subject ok_;\n' > "$ROOT/src/committed.cpp"
+    git -C "$ROOT" add src/committed.cpp
+    git -C "$ROOT" commit -qm base
+    printf 'lv_subject_t bad_;\n' > "$ROOT/src/x.cpp"
+    git -C "$ROOT" add src/x.cpp
+    printf 'helix::Subject fine_;\n' > "$ROOT/src/x.cpp"
+    run_wrapper true
+    [ "$status" -eq 1 ] || fail "the commit passed a staged site: $output"
+    contains "src/x.cpp:1: storage" "$output"
+    run_wrapper false
+    [ "$status" -eq 0 ] || fail "the push failed on a clean tree: $output"
+    contains "OK: no deprecated subject call or by-value lv_subject_t." "$output"
 }
 
 # ------------------------------------------------------- the commit's scope
@@ -148,7 +201,7 @@ staged_tree() {
     staged_tree
     printf 'helix::Subject ok_;\n' > "$ROOT/src/x.cpp"
     git -C "$ROOT" add src/x.cpp
-    run bash -c 'cd "$1" && python3 "$2" --root "$1" --staged-only' _ "$ROOT" "$PWD/$GATE"
+    run python3 $GATE --root "$ROOT" --staged-only
     [ "$status" -eq 0 ] || fail "an unstaged file's site failed the commit: $output"
 }
 
@@ -157,7 +210,7 @@ staged_tree() {
     printf 'lv_subject_t bad_;\n' > "$ROOT/src/x.cpp"
     git -C "$ROOT" add src/x.cpp
     printf 'helix::Subject ok_;\n' > "$ROOT/src/x.cpp"
-    run bash -c 'cd "$1" && python3 "$2" --root "$1" --staged-only' _ "$ROOT" "$PWD/$GATE"
+    run python3 $GATE --root "$ROOT" --staged-only
     [ "$status" -eq 1 ] || fail "a staged site passed: $output"
     contains "src/x.cpp:1: storage" "$output"
 }
@@ -169,6 +222,7 @@ staged_tree() {
     [[ "include/x.h" =~ $re ]] || fail "a header does not trigger the gate"
     [[ "tests/unit/test_x.cpp" =~ $re ]] || fail "a test does not trigger the gate"
     [[ "firmware/helixscreen-esp32/main/app.c" =~ $re ]] || fail "firmware does not trigger it"
+    [[ "scripts/check_source_rules.py" =~ $re ]] || fail "the rule's script does not trigger the gate"
     [[ "scripts/qc/lvgl_subject_api.sh" =~ $re ]] || fail "its own wrapper does not trigger it"
     [[ ! "docs/devel/THREADING.md" =~ $re ]] || fail "a doc triggers the gate"
 }

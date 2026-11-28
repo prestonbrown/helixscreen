@@ -293,7 +293,7 @@ lv_subject_set_string(&status_subject, "New status");
 
 Every subject is a `helix::Subject`, which owns an `lv_subject_create()` node with a stable address; `&subject` is the
 `lv_subject_t*` the LVGL calls take. LVGL 9.6 deprecates `lv_subject_init_*()` / `lv_subject_deinit()` and a by-value
-`lv_subject_t`; `scripts/check_lvgl_subject_api.py` fails any use. Ownership rules: [`THREADING.md` § *Subject
+`lv_subject_t`; the `lvgl-subject-api` rule of `scripts/check_source_rules.py` fails any use. Ownership rules: [`THREADING.md` § *Subject
 ownership*](THREADING.md#subject-ownership-helixsubject). Every other renamed LVGL name fails to compile
 (`LV_DISABLE_API_MAPPING`), and `scripts/lvgl96_rename.py` ports old code.
 

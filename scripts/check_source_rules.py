@@ -27,6 +27,9 @@ script; each keeps its own section below with its scope, marker and message.
                                 ui_xml/, and a FILE may be a directory)
     xml-create-registered       an lv_xml_create() name that nothing can register
                                 (no marker; scans src/)
+    lvgl-subject-api            a subject set up through the API LVGL 9.6 deprecates, or
+                                an lv_subject_t held by value (// SUBJECT_API_OK: <reason>;
+                                scans src/, include/, tests/ and firmware/)
 
   pinned rules (check named files under --root, no marker):
     touch-rotation-source       display backends gate the stored touch range on
@@ -39,30 +42,47 @@ Usage:
   check_source_rules.py                           # every rule
   check_source_rules.py --rule NAME [--rule ...]  # the named rules only
   check_source_rules.py --rule NAME FILE...       # one file-set rule over FILEs
+  check_source_rules.py --rule NAME --staged-only # a file-set rule over the staged blobs
   check_source_rules.py --root DIR ...            # resolve every scope under DIR
 
 FILE arguments replace a file-set rule's default scope and are refused for a
 pinned rule. --max-allowed=N lets a file-set rule pass with up to N sites
 (default 0). Exit 0 when every selected rule passes, 1 when one fails.
 
+--staged-only answers a file-set rule's default scope from the index instead of
+the working tree: the paths the commit stages under the scope, each read as its
+staged blob, so an edit left unstaged is never judged. A staged run prints what
+fails; a rule that passes is quiet, with nothing staged under its scope or with
+its staged files clean. FILE arguments are refused with it, and so is a rule
+that cannot be judged on the staged blobs alone (the pinned rules,
+xml-create-registered): exit 2 names each.
+
 A failing rule prints its message and its sites as `file:line: text` lines.
-section-returns, init-list-ternary and getenv-setenv print the sites alone:
-scripts/code_lint.sh prints their message around them (lint_section_returns,
-lint_init_list_ternary, lint_getenv_setenv).
+section-returns, init-list-ternary, getenv-setenv and lvgl-subject-api print
+the sites alone: scripts/code_lint.sh and scripts/qc/lvgl_subject_api.sh print
+their message around them (lint_section_returns, lint_init_list_ternary,
+lint_getenv_setenv, qc_lvgl_subject_api). lvgl-subject-api prints a site as
+`file:line: call` or `file:line: storage` over its source line, and over the
+working tree lists them under any --max-allowed, so a large one is how its
+sites are listed.
 """
 
 from __future__ import annotations
 
 import argparse
 import bisect
+import io
 import re
 import subprocess
 import sys
+from contextlib import redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from path_scope import in_skipped_dir
 from source_strip import blank_cxx
+from staged_content import staged_files
 
 SCRIPT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -72,11 +92,98 @@ Files = Optional[list[Path]]
 # ====================================================================
 # Shared helpers
 # ====================================================================
-def cxx_sources(
-    root: Path, dirs: tuple[str, ...] = ("src", "include"), exts: tuple[str, ...] = ("*.cpp", "*.h")
-) -> list[Path]:
-    """Every file named like one of `exts` under `dirs`, on disk whether tracked or not."""
-    return [p for d in dirs for ext in exts for p in (root / d).rglob(ext)]
+@dataclass(frozen=True)
+class Scope:
+    """The files a file-set rule scans when it is given no FILE arguments."""
+    dirs: tuple[str, ...]
+    suffixes: tuple[str, ...]
+    # Directory names; a path with one of them anywhere below the root is outside the scope.
+    skip: tuple[str, ...] = ()
+    # True: only what `git ls-files` names, tracked or untracked and not ignored.
+    # False: every file on disk.
+    listed_by_git: bool = False
+
+
+# src/ and include/, the C++ the app compiles.
+SRC_SCOPE = Scope(("src", "include"), (".cpp", ".h"))
+
+
+class StagedIndex:
+    """The index of the repository `root` lies in, as --staged-only reads it.
+
+    `top` is None when `root` lies in no repository. `text` holds the staged blob
+    of every path files() names, by path.
+    """
+
+    def __init__(self, root: Path):
+        self.root = root.resolve()
+        top = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        self.top = Path(top).resolve() if top else None
+        self.text: dict[Path, Optional[str]] = {}
+
+    def files(self, scope: Scope) -> list[Path]:
+        """The paths the commit stages under `scope`, each with its blob filed for read_text()."""
+        paths = []
+        for staged, text in staged_files(self.top, scope.suffixes):
+            path = self.top / staged
+            try:
+                rel = path.relative_to(self.root)
+            except ValueError:
+                continue  # staged in the repository, but outside the root
+            if rel.parts[0] in scope.dirs and not in_skipped_dir(rel, self.root, scope.skip):
+                paths.append(path)
+                self.text[path] = text
+        return paths
+
+
+# The index --staged-only reads; None while rules read the working tree.
+_index: Optional[StagedIndex] = None
+
+
+def use_staged_blobs(root: Path) -> bool:
+    """Have read_text() serve the index of the repository `root` lies in.
+
+    False when `root` lies in no repository: there is no index to read.
+    """
+    global _index
+    _index = StagedIndex(root)
+    return _index.top is not None
+
+
+def scope_files(root: Path, scope: Scope) -> list[Path]:
+    """Every file under `scope` in `root`: what a file-set rule scans when it names no FILE.
+
+    The working tree, or under --staged-only the paths the commit stages under the
+    scope, each filed for read_text() as its staged blob.
+    """
+    if _index is not None:
+        return _index.files(scope)
+    if scope.listed_by_git:
+        listing = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(root),
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                *scope.dirs,
+            ],
+            text=True,
+        )
+        paths = [root / f for f in listing.split("\0") if f.endswith(scope.suffixes)]
+    else:
+        paths = [p for d in scope.dirs for s in scope.suffixes for p in (root / d).rglob("*" + s)]
+    if scope.skip:
+        paths = [p for p in paths if not in_skipped_dir(p, root, scope.skip)]
+    return paths
 
 
 def rel_path(root: Path, path: Path) -> str:
@@ -92,7 +199,12 @@ def read_text(path: Path, errors: str = "strict") -> Optional[str]:
 
     `errors="replace"` keeps a file that holds bytes UTF-8 cannot decode, each read
     as U+FFFD, instead of skipping the file.
+
+    Under --staged-only the text is the path's staged blob, for a path scope_files()
+    named. Any other path reads as missing: the working tree is never read.
     """
+    if _index is not None:
+        return _index.text.get(path)
     try:
         return path.read_text(encoding="utf-8", errors=errors)
     except (OSError, UnicodeDecodeError):
@@ -183,7 +295,7 @@ PRINT_STATE_CAST_ALLOWLIST = {
 
 
 def print_state_cast(root: Path, files: Files, max_allowed: int) -> int:
-    files = files if files is not None else cxx_sources(root)
+    files = files if files is not None else scope_files(root, SRC_SCOPE)
     hits = []
     for f in files:
         rel = rel_path(root, f)
@@ -258,7 +370,7 @@ JSON_DUMP_OK = "JSON_DUMP_OK:"
 
 
 def json_dump_utf8(root: Path, files: Files, max_allowed: int) -> int:
-    files = files if files is not None else cxx_sources(root)
+    files = files if files is not None else scope_files(root, SRC_SCOPE)
     hits = []
     for f in files:
         rel = rel_path(root, f)
@@ -366,7 +478,7 @@ def raw_print_state_sites(root: Path, files: list[Path]) -> list[str]:
 
 
 def raw_print_state(root: Path, files: Files, max_allowed: int) -> int:
-    hits = raw_print_state_sites(root, files if files is not None else cxx_sources(root))
+    hits = raw_print_state_sites(root, files if files is not None else scope_files(root, SRC_SCOPE))
     if len(hits) > max_allowed:
         print(f"Raw print-state reads with no stated reason: {len(hits)} > {max_allowed}")
         for h in hits:
@@ -402,21 +514,11 @@ XML_CREATE_ASSIGN = re.compile(
     r"\s*(?:static_cast<\s*lv_obj_t\s*\*\s*>\s*\()?\s*lv_xml_create\s*\(",
     re.S,
 )
-
-
-def tracked_cxx(
-    root: Path, dirs: tuple[str, ...], suffixes: tuple[str, ...] = (".cpp", ".h")
-) -> list[Path]:
-    """Every tracked or untracked-but-not-ignored file ending in `suffixes` under `dirs`."""
-    out = subprocess.check_output(
-        ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", *dirs],
-        text=True,
-    )
-    return [root / f for f in out.split() if f.endswith(suffixes)]
+XML_HIDE_SCOPE = Scope(("src", "plugins"), (".cpp", ".h"), listed_by_git=True)
 
 
 def xml_create_then_hide(root: Path, files: Files, max_allowed: int) -> int:
-    files = files if files is not None else tracked_cxx(root, ("src", "plugins"))
+    files = files if files is not None else scope_files(root, XML_HIDE_SCOPE)
     bad = []
     for f in files:
         text = read_text(f, errors="replace")
@@ -481,6 +583,7 @@ LAMBDA_SPECIFIERS = re.compile(
     r"(?:\b(?:mutable|noexcept|const|override|final|constexpr)\b\s*|->\s*[\w:<>,\s*&]+?)*$"
 )
 SECTION_RETURN_OK = "SECTION_RETURN_OK"
+SECTION_SCOPE = Scope(("tests",), (".cpp", ".h"), listed_by_git=True)
 
 
 def section_bracket_pairs(text: str, open_ch: str, close_ch: str) -> dict[int, int]:
@@ -589,7 +692,7 @@ def section_return_sites(rel: str, raw: str) -> list[str]:
 
 def section_returns(root: Path, files: Files, max_allowed: int) -> int:
     hits = []
-    for f in files if files is not None else tracked_cxx(root, ("tests",)):
+    for f in files if files is not None else scope_files(root, SECTION_SCOPE):
         raw = read_text(f, errors="replace")
         if raw is None or "return" not in raw or not SECTION_BLOCK.search(raw):
             continue
@@ -611,8 +714,7 @@ def section_returns(root: Path, files: Files, max_allowed: int) -> int:
 # The scan reads the code with literal bodies blanked and the quotes kept.
 INIT_LIST_OPERAND = re.compile(r"(\?|(?<!:):(?!:))\s*std\s*::\s*initializer_list\s*<")
 INIT_LIST_TERNARY_OK = "INIT_LIST_TERNARY_OK"
-INIT_LIST_DIRS = ("src", "include", "firmware")
-INIT_LIST_SUFFIXES = (".cpp", ".h", ".hpp")
+INIT_LIST_SCOPE = Scope(("src", "include", "firmware"), (".cpp", ".h", ".hpp"), listed_by_git=True)
 CTOR_MEMBER_INIT = re.compile(r"\)\s*(?:noexcept\s*)?:(?!:)")
 # Keywords that name no declarator: the identifier before a bracket is a name
 # only when it is none of these.
@@ -712,7 +814,7 @@ def init_list_ternary_sites(rel: str, raw: str) -> list[str]:
 
 def init_list_ternary(root: Path, files: Files, max_allowed: int) -> int:
     hits = []
-    scope = files if files is not None else tracked_cxx(root, INIT_LIST_DIRS, INIT_LIST_SUFFIXES)
+    scope = files if files is not None else scope_files(root, INIT_LIST_SCOPE)
     for f in scope:
         raw = read_text(f, errors="replace")
         # The blanking keeps every code character in place, so INIT_LIST_OPERAND
@@ -771,6 +873,7 @@ GETENV_ROOTS = (
     "ui_xml",
 )
 GETENV_SUFFIXES = (".cpp", ".h", ".cc", ".hpp", ".c")
+GETENV_SCOPE = Scope(GETENV_ROOTS, GETENV_SUFFIXES)
 
 # West-const, east-const and pointer-const spellings of a char pointer's
 # declaration; (?!=) keeps == comparisons out.
@@ -925,14 +1028,38 @@ def getenv_setenv_sites(rel: str, lines: list[str]) -> list[str]:
     return out
 
 
+def getenv_missing_roots(root: Path) -> list[str]:
+    """The scan roots that hold nothing to scan: absent from the working tree, or
+    under --staged-only from the index."""
+    if _index is not None:
+        listing = subprocess.run(
+            ["git", "-C", str(_index.top), "ls-files", "-z"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+        held = set()
+        for entry in listing.split("\0"):
+            try:
+                held.add((_index.top / entry).relative_to(_index.root).parts[0])
+            except (ValueError, IndexError):
+                pass  # an index entry outside the root, or the empty entry after the last NUL
+        return [d for d in GETENV_ROOTS if d not in held]
+    return [d for d in GETENV_ROOTS if not (root / d).exists()]
+
+
 def getenv_setenv(root: Path, files: Files, max_allowed: int) -> int:
-    paths, missing = [], []
-    for given in files if files is not None else [root / d for d in GETENV_ROOTS]:
-        if not given.exists():
-            # A root that is not there would otherwise scan nothing and pass.
-            missing.append(f"scan root does not exist: {rel_path(root, given)}")
-        else:
-            paths += sorted(given.rglob("*")) if given.is_dir() else [given]
+    if files is not None:
+        paths, missing = [], []
+        for given in files:
+            if not given.exists():
+                # A root that is not there would otherwise scan nothing and pass.
+                missing.append(f"scan root does not exist: {rel_path(root, given)}")
+            else:
+                paths += sorted(given.rglob("*")) if given.is_dir() else [given]
+    else:
+        paths = scope_files(root, GETENV_SCOPE)
+        missing = [f"scan root does not exist: {rel}" for rel in getenv_missing_roots(root)]
 
     hits = []
     for path in paths:
@@ -970,15 +1097,18 @@ def getenv_setenv(root: Path, files: Files, max_allowed: int) -> int:
 # Scope is src/, on disk whether tracked or not, with no opt-out marker. FILE
 # arguments are the files searched for the calls; the names that can be
 # registered still come from every source under src/, because a component is
-# registered where it is filed, not only where it is created.
+# registered where it is filed, not only where it is created. --staged-only
+# does not apply for the same reason: the staged blobs alone cannot say which
+# names the tree registers.
 # qc_xml_create_registered (scripts/qc/xml_create_registered.sh) runs it.
 XML_CREATE_CALL = re.compile(r'lv_xml_create\s*\([^;]*?,\s*"([A-Za-z_][A-Za-z0-9_]*)"', re.S)
 XML_FILE_LITERAL = re.compile(r'"(?:[^"]*/)?([A-Za-z_][A-Za-z0-9_]*)\.xml"')
 XML_WIDGET_REGISTRATION = re.compile(r'lv_xml_register_widget\(\s*"([A-Za-z_][A-Za-z0-9_]*)"')
+XML_CREATE_SCOPE = Scope(("src",), (".cpp", ".h", ".c"))
 
 
 def xml_create_registered(root: Path, files: Files, max_allowed: int) -> int:
-    sources = cxx_sources(root, ("src",), ("*.cpp", "*.h", "*.c"))
+    sources = scope_files(root, XML_CREATE_SCOPE)
     texts: dict[Path, Optional[str]] = {p: read_text(p, errors="replace") for p in sources}
     for f in files or []:
         texts.setdefault(f, read_text(f, errors="replace"))
@@ -1015,6 +1145,120 @@ def xml_create_registered(root: Path, files: Files, max_allowed: int) -> int:
     else:
         print("✅ XML create names: every lv_xml_create() component in src/ can register")
     return 0
+
+
+# ====================================================================
+# lvgl-subject-api
+# ====================================================================
+# An LVGL subject is owned by helix::Subject (include/core/subject.h), never held
+# by value and never set up through the subject API LVGL 9.6 deprecates. A subject
+# held by value is torn down with lv_subject_deinit() and re-initialized in place;
+# helix::Subject owns an lv_subject_create() node whose address survives reset()
+# and every re-init. docs/devel/THREADING.md § "Subject ownership".
+#
+# Two shapes are counted, in code only (comments and string literals blanked):
+#
+#   call      lv_subject_init_{int,float,string,pointer,color,group}, lv_subject_deinit,
+#             lv_subject_copy_string
+#   storage   an lv_subject_t held by value: each declarator of a variable, member or
+#             array declaration (`lv_subject_t a, b;` is two), lv_subject_t or lv_subject_t[]
+#             as any template argument (array, vector, map, optional, pair, shared_ptr,
+#             unique_ptr, make_unique, ...), new lv_subject_t. lv_subject_t* and
+#             lv_subject_t& are not storage.
+#
+# Any site fails. A line carrying `SUBJECT_API_OK: <reason>`, or directly below a comment
+# line carrying it, is skipped: for a test that pins LVGL's own subject API.
+#
+# Scope is src/, include/, tests/ and firmware/, outside build/ and managed_components/.
+# qc_lvgl_subject_api (scripts/qc/lvgl_subject_api.sh) runs it, on the staged blobs
+# at commit and over the tree at push, and prints this rule's message around the
+# sites it reports. A line holding several sites is listed once; each one counts.
+SUBJECT_SCOPE = Scope(
+    ("src", "include", "tests", "firmware"),
+    (".c", ".cc", ".cpp", ".h", ".hpp", ".inc"),
+    skip=("build", "managed_components"),
+)
+SUBJECT_API_OK = "SUBJECT_API_OK:"
+
+SUBJECT_CALL = re.compile(
+    r"\b(lv_subject_init_(?:int|float|string|pointer|color|group)|lv_subject_deinit|"
+    r"lv_subject_copy_string)\s*\("
+)
+# lv_subject_t by value as a template argument: std::array/vector/deque/list/map/optional/
+# pair/shared_ptr/unique_ptr/make_unique and the like, including the T[] forms.
+SUBJECT_TEMPLATE_ARG = re.compile(r"[<,]\s*(?:const\s+)?lv_subject_t\s*(?:\[\s*\])?\s*(?=[,>])")
+SUBJECT_NEW = re.compile(r"\bnew\s+lv_subject_t\b")
+# One declarator after the type; the declarator list continues with `, name` entries.
+SUBJECT_DECLARATOR = r"[A-Za-z_]\w*\s*(?:\[[^\]]*\]\s*)*(?:\{[^}]*\}\s*)?(?:=\s*\{[^}]*\}\s*)?"
+SUBJECT_DECL = re.compile(
+    r"\blv_subject_t\s+(?!\*|&)("
+    + SUBJECT_DECLARATOR
+    + r"(?:,\s*(?![A-Za-z_]\w*\s+[A-Za-z_*&])"
+    + SUBJECT_DECLARATOR
+    + r")*)(?=[;,=)])"
+)
+
+
+def subject_commas_inside(declarators: str) -> int:
+    """Commas inside [] or {} of a declarator list, which separate no declarators."""
+    depth = 0
+    inner = 0
+    for c in declarators:
+        if c in "[{":
+            depth += 1
+        elif c in "]}":
+            depth -= 1
+        elif c == "," and depth > 0:
+            inner += 1
+    return inner
+
+
+def subject_storage_sites(code: str) -> int:
+    """By-value lv_subject_t sites on one line: each declarator, template argument and new."""
+    n = len(SUBJECT_TEMPLATE_ARG.findall(code)) + len(SUBJECT_NEW.findall(code))
+    for m in SUBJECT_DECL.finditer(code):
+        n += m.group(1).count(",") + 1 - subject_commas_inside(m.group(1))
+    return n
+
+
+def lvgl_subject_sites(rel: str, text: str) -> list[str]:
+    """One entry per deprecated call and per by-value lv_subject_t, a line listed once per shape.
+
+    Each entry is `path:line: call` or `path:line: storage` over the source line;
+    a line holding several sites of one shape yields that many equal entries.
+    """
+    hits = []
+    raw_lines = text.splitlines()
+    code_lines = blank_cxx(text).splitlines()
+    prev_ok = False
+    for i, raw in enumerate(raw_lines):
+        code = code_lines[i] if i < len(code_lines) else ""
+        opt_out = SUBJECT_API_OK in raw or prev_ok
+        stripped = raw.strip()
+        prev_ok = stripped.startswith(("//", "*", "/*")) and SUBJECT_API_OK in raw
+        if opt_out:
+            continue
+        sites_on_line = (
+            ("call", len(SUBJECT_CALL.findall(code))),
+            ("storage", subject_storage_sites(code)),
+        )
+        for shape, n in sites_on_line:
+            hits += [f"  {rel}:{i + 1}: {shape}\n      {stripped[:110]}"] * n
+    return hits
+
+
+def lvgl_subject_api(root: Path, files: Files, max_allowed: int) -> int:
+    hits = []
+    for f in files if files is not None else scope_files(root, SUBJECT_SCOPE):
+        text = read_text(f, errors="replace")
+        # Every shape names lv_subject; a file that never spells it needs no blanking.
+        if text is None or "lv_subject" not in text:
+            continue
+        hits += lvgl_subject_sites(rel_path(root, f), text)
+
+    for hit in dict.fromkeys(hits):
+        print(hit)
+    return 1 if len(hits) > max_allowed else 0
 
 
 # ====================================================================
@@ -1226,7 +1470,13 @@ class Rule:
     check: Callable[[Path, Files, int], int]
     # A pinned rule checks a fixed file list under --root; FILE arguments do not apply.
     pinned: bool = False
+    # Why --staged-only cannot judge the rule, for one that reads more than its
+    # own scope to decide. Empty when the mode applies.
+    needs_whole_tree: str = ""
 
+
+# A pinned rule under --staged-only.
+PINNED_WHOLE_TREE = "it checks named files whole, and its wrapper runs it whole at commit"
 
 RULES = {
     "print-state-cast": Rule(print_state_cast),
@@ -1236,11 +1486,24 @@ RULES = {
     "section-returns": Rule(section_returns),
     "init-list-ternary": Rule(init_list_ternary),
     "getenv-setenv": Rule(getenv_setenv),
-    "xml-create-registered": Rule(xml_create_registered),
+    "xml-create-registered": Rule(
+        xml_create_registered,
+        needs_whole_tree=(
+            "it collects the names a created component can register under from every source "
+            "under src/, which the staged blobs alone cannot answer for"
+        ),
+    ),
+    "lvgl-subject-api": Rule(lvgl_subject_api),
     "touch-rotation-source": Rule(touch_rotation_source, pinned=True),
     "grid-metrics-single-source": Rule(grid_metrics_single_source, pinned=True),
     "filament-ops-neutral": Rule(filament_ops_neutral, pinned=True),
 }
+
+
+def usage_error(message: str) -> int:
+    """Exit 2 on one line: the run asked for something that cannot be judged."""
+    print(message, file=sys.stderr)
+    return 2
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -1252,19 +1515,48 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--rule", dest="rules", action="append", choices=list(RULES), help="run only this rule"
     )
     ap.add_argument("--max-allowed", type=int, default=0, help="sites a file-set rule may hold")
+    ap.add_argument(
+        "--staged-only",
+        action="store_true",
+        help="a file-set rule's scope is the paths the commit stages, read as their staged blobs",
+    )
     ap.add_argument("files", nargs="*", type=Path, help="files for a file-set rule")
     args = ap.parse_args(argv)
 
     names = args.rules or list(RULES)
+    if args.staged_only and args.files:
+        return usage_error(
+            "--staged-only and FILE arguments do not combine: FILE arguments are read from the "
+            "working tree, --staged-only reads only the index"
+        )
     if args.files:
         pinned = [n for n in names if RULES[n].pinned]
         if pinned:
             ap.error(f"FILE arguments do not apply to pinned rule(s): {', '.join(pinned)}")
+    if args.staged_only and not use_staged_blobs(args.root):
+        return usage_error(
+            f"--staged-only reads the index, and --root is not inside a git repository: {args.root}"
+        )
 
     status = 0
+    refused = False
     for name in names:
-        status |= RULES[name].check(args.root, args.files or None, args.max_allowed)
-    return status
+        rule = RULES[name]
+        if args.staged_only and (rule.pinned or rule.needs_whole_tree):
+            why = PINNED_WHOLE_TREE if rule.pinned else rule.needs_whole_tree
+            usage_error(f"--staged-only does not apply to {name}: {why}")
+            refused = True
+        elif args.staged_only:
+            # A staged run prints what fails. A rule passes quietly, with nothing
+            # staged under its scope or with its staged files clean.
+            with redirect_stdout(io.StringIO()) as out:
+                code = rule.check(args.root, None, args.max_allowed)
+            if code:
+                sys.stdout.write(out.getvalue())
+            status |= code
+        else:
+            status |= rule.check(args.root, args.files or None, args.max_allowed)
+    return 2 if refused else status
 
 
 if __name__ == "__main__":

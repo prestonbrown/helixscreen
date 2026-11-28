@@ -48,4 +48,4 @@ Also: no `std::thread(...).detach()` for one-shot work (`EAGAIN` becomes
 A subject is a `helix::Subject` (`include/core/subject.h`), never a by-value `lv_subject_t`:
 its node keeps one address across `reset()` and re-init, its free is queued on the update
 queue, and `is_live()` (or `helix::subject_is_live()`) is the only "initialized" test, never
-the type. THREADING.md § "Subject ownership"; gate `scripts/check_lvgl_subject_api.py`.
+the type. THREADING.md § "Subject ownership"; gate `lvgl-subject-api` in `scripts/check_source_rules.py`.
