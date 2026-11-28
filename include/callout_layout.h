@@ -102,9 +102,12 @@ struct CalloutPoint {
 /// its height (its tallest budget chip plus `gap`) from the area, so the row is
 /// used only when the picture keeps its full-area size without that height.
 struct CalloutRowBelow {
-    int w = 0;          ///< the strip's width; 0 offers no strip
-    int gap = 0;        ///< between the area and the strip
-    bool shown = false; ///< the strip is showing, so the area is already short by its take
+    int w = 0;   ///< the strip's width; 0 offers no strip
+    int gap = 0; ///< between the area and the strip
+    /// Pixels the showing strip takes from the area now, its height plus `gap`; 0 while
+    /// hidden. The row is judged against the area with these given back, so the
+    /// decision is the same whether the strip shows or not.
+    int taken = 0;
 };
 
 struct CalloutLayoutInput {
@@ -144,6 +147,8 @@ struct CalloutLayout {
     bool unlabeled = false;
     /// RowBelow chips are laid out at their w_row_plain, so heaters show no status glyph.
     bool row_plain = false;
+    /// RowBelow: the strip's height, its tallest budget chip, whichever chips show.
+    int row_h = 0;
 };
 
 /// Where a tagged image puts `k`'s chip: its part's point, the nozzle for the
@@ -1015,7 +1020,7 @@ inline bool try_row_below(const CalloutLayoutInput& in, CalloutLayout& out) {
             row_h = std::max(row_h, chip_h_of(in, c));
         const int take = row_h + in.row.gap;
         // The area as tall as it stands with the row hidden.
-        const int full_h = in.area_h + (in.row.shown ? take : 0);
+        const int full_h = in.area_h + in.row.taken;
         const CalloutRect full = fit_image(in.area_w, full_h, in.image_w, in.image_h);
         const CalloutRect kept = fit_image(in.area_w, full_h - take, in.image_w, in.image_h);
         // A taller chip shed later may leave a shorter row that fits.
@@ -1027,7 +1032,13 @@ inline bool try_row_below(const CalloutLayoutInput& in, CalloutLayout& out) {
         out.image = fit_image(in.area_w, in.area_h, in.image_w, in.image_h);
         out.unlabeled = true;
         out.row_plain = plain;
+        out.row_h = row_h;
+        // A chip taller than the budget's tallest has no room in the strip.
         std::vector<CalloutChipIn> active = shed(in.active, n);
+        active.erase(
+            std::remove_if(active.begin(), active.end(),
+                           [&](const CalloutChipIn& c) { return chip_h_of(in, c) > row_h; }),
+            active.end());
         for (const auto& c : in.active)
             if (std::none_of(active.begin(), active.end(),
                              [&](const CalloutChipIn& a) { return a.kind == c.kind; }))

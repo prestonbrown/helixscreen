@@ -81,23 +81,26 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     if (!parts.area || !probe_part)
         return out;
 
-    const bool offers_row = parts.row && parts.layer && lv_obj_get_parent(parts.row);
-    if (offers_row) {
+    const bool has_row = parts.row && parts.layer && lv_obj_get_parent(parts.row);
+    if (has_row) {
         // The row's visibility follows the mode subject at once, the area's
         // size only at the next layout: settle it before reading either.
         lv_obj_update_layout(parts.area);
     }
     CalloutLayoutInput in;
-    if (offers_row) {
+    if (has_row && config.offer_row) {
         in.row.w = lv_obj_get_content_width(lv_obj_get_parent(parts.row));
         in.row.gap = config.row_gap;
-        in.row.shown = !lv_obj_is_hidden(parts.row);
+        in.row.taken =
+            lv_obj_is_hidden(parts.row) ? 0 : lv_obj_get_height(parts.row) + config.row_gap;
     }
     in.area_w = lv_obj_get_content_width(parts.area);
     in.area_h = lv_obj_get_content_height(parts.area);
     in.single_cell = config.single_cell;
     if (in.area_w <= 0 || in.area_h <= 0) {
         image_changed_ = place_image(parts.image, nullptr);
+        if (has_row)
+            home_chips(parts, out.mode);
         return out;
     }
     in.tagged = regions != nullptr;
@@ -135,9 +138,9 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
                 fmt::format(" {}:{}/{}/{}", static_cast<int>(c.kind), c.w, c.w_unlabeled, c.w_row);
         }
         spdlog::trace(
-            "[CalloutPresenter] area {}x{}, row {} gap {} shown {}, image {}x{} at {},{}, "
+            "[CalloutPresenter] area {}x{}, row {} gap {} taken {}, image {}x{} at {},{}, "
             "widest budget chip {}, mode {}, budget kind:w/unlabeled/row{}",
-            in.area_w, in.area_h, in.row.w, in.row.gap, in.row.shown, out.image.w, out.image.h,
+            in.area_w, in.area_h, in.row.w, in.row.gap, in.row.taken, out.image.w, out.image.h,
             out.image.x, out.image.y, widest, static_cast<int>(out.mode), widths);
     }
     if (out.mode == CalloutMode::Pinned) {
@@ -187,8 +190,16 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         for (const Chip& c : parts.chips)
             place_glow(c, *regions, out.image);
     }
-    if (offers_row)
+    if (has_row) {
         home_chips(parts, out.mode);
+        // The strip stands at its tallest budget chip, whichever chips show, so
+        // the area under the picture keeps one height.
+        if (out.mode == CalloutMode::RowBelow &&
+            lv_obj_get_style_height(parts.row, LV_PART_MAIN) != out.row_h) {
+            // DECLARATIVE_OK: measured callout layout
+            lv_obj_set_height(parts.row, out.row_h);
+        }
+    }
     const bool compact = callout_mode_is_compact(out.mode);
     for (const CalloutChipOut& c : out.chips) {
         if (const Chip* part = part_for(parts, c.kind)) {

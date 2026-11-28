@@ -881,13 +881,14 @@ void PrintStatusTiles::update_now() {
     cfg.min_line = theme_manager_get_spacing("space_md");
     cfg.leader_min_distance = theme_manager_get_spacing("space_lg");
     // Portrait at the two smallest breakpoints offers the chips a row under
-    // both tiles, which keeps the printer picture clean of them.
-    if (row_below_offered()) {
-        parts.row = lv_obj_find_by_name(root, "ps_chip_row");
-        parts.layer = lv_obj_find_by_name(area, "ps_callout_layer");
-        if (parts.row && lv_obj_get_parent(parts.row)) {
-            cfg.row_gap = lv_obj_get_style_pad_row(lv_obj_get_parent(parts.row), LV_PART_MAIN);
-        }
+    // both tiles, which keeps the printer picture clean of them. The row and
+    // layer are handed over whenever they exist, so a resize that withdraws
+    // the offer brings the chips back to the picture.
+    parts.row = lv_obj_find_by_name(root, "ps_chip_row");
+    parts.layer = lv_obj_find_by_name(area, "ps_callout_layer");
+    cfg.offer_row = row_below_offered();
+    if (parts.row && lv_obj_get_parent(parts.row)) {
+        cfg.row_gap = lv_obj_get_style_pad_row(lv_obj_get_parent(parts.row), LV_PART_MAIN);
     }
 
     laid_out_.valid = true;

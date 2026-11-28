@@ -50,9 +50,10 @@ bool overlaps(const CalloutRect& a, const CalloutRect& b) {
 }
 
 void check_in_row(const CalloutLayout& l, int row_w) {
+    CHECK(l.row_h == kChipH);
     for (size_t i = 0; i < l.chips.size(); ++i) {
         const CalloutRect& r = l.chips[i].rect;
-        CHECK((r.x >= 0 && r.y >= 0 && r.x + r.w <= row_w && r.y + r.h <= kChipH));
+        CHECK((r.x >= 0 && r.y >= 0 && r.x + r.w <= row_w && r.y + r.h <= l.row_h));
         CHECK_FALSE(l.chips[i].has_line);
         for (size_t j = i + 1; j < l.chips.size(); ++j)
             CHECK_FALSE(overlaps(r, l.chips[j].rect));
@@ -77,7 +78,7 @@ TEST_CASE("row below: portrait micro puts the chips under both tiles at the pict
     // Shown, the row has taken its chip and gap from the area: the decision and
     // the picture's size stand.
     in.area_h -= kChipH + kRowGap;
-    in.row.shown = true;
+    in.row.taken = kChipH + kRowGap;
     const auto shown = compute_callout_layout(in);
     REQUIRE(shown.mode == CalloutMode::RowBelow);
     CHECK(shown.image.w == full.w);
@@ -131,4 +132,15 @@ TEST_CASE("row below: chips the row cannot hold even plain leave the layout as i
     CHECK(l.mode != CalloutMode::RowBelow);
     in.row = {};
     CHECK(l.mode == compute_callout_layout(in).mode);
+}
+
+TEST_CASE("row below: a strip that takes more than its budget does not toggle the mode",
+          "[callout_layout][print_status]") {
+    auto in = portrait(115, 182, kVoronW, kVoronH, 256);
+    REQUIRE(compute_callout_layout(in).mode == CalloutMode::RowBelow);
+    // Shown, the strip took 40px rather than its 28: the area is judged with
+    // those 40 given back, so the second pass decides as the first did.
+    in.area_h = 182 - 40;
+    in.row.taken = 40;
+    CHECK(compute_callout_layout(in).mode == CalloutMode::RowBelow);
 }

@@ -629,6 +629,31 @@ TEST_CASE_METHOD(Portrait272,
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
+TEST_CASE_METHOD(Portrait272, "chips in the row go back to the picture when the row is withdrawn",
+                 "[print_status]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    fans_part_spinning_aux_stopped(*this);
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::RowBelow));
+    lv_obj_t* fan = lv_obj_find_by_name(root_, "ps_chip_part_fan");
+    lv_obj_t* layer = lv_obj_find_by_name(root_, "ps_callout_layer");
+    lv_obj_t* row = lv_obj_find_by_name(root_, "ps_chip_row");
+    REQUIRE(fan != nullptr);
+    REQUIRE(layer != nullptr);
+    REQUIRE(lv_obj_get_parent(fan) == row);
+
+    // Stacked tiles take the offer away with no rebuild of the tree.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ps_arrangement"), 1);
+    tiles().update_now();
+    tiles().update_now(); // a mode change reschedules once
+
+    CHECK(subject_int("ps_callout_mode") != static_cast<int>(CalloutMode::RowBelow));
+    CHECK(lv_obj_get_parent(fan) == layer);
+    CHECK(lv_obj_is_hidden(row));
+    CHECK(subject_int("ps_chip_part_fan_shown") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(fan));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
 TEST_CASE_METHOD(Portrait320, "a stopped fan stays off a tile whose chips land on the picture",
                  "[print_status]") {
     fans_part_spinning_aux_stopped(*this);

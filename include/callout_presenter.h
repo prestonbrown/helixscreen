@@ -65,6 +65,8 @@ class CalloutPresenter {
         std::optional<Chip>
             toolhead; ///< the merged nozzle + part-fan chip, when the screen has one
         /// A strip under the area that holds the chips in one row (CalloutMode::RowBelow),
+        /// offered only with Config::offer_row; with it present, every apply() puts the
+        /// chips back where the mode keeps them, offered or not.
         /// full width of its parent; nullptr offers none. Its visibility follows the mode.
         lv_obj_t* row = nullptr;
         /// Where the chips live in every other mode; required with `row`.
@@ -79,6 +81,7 @@ class CalloutPresenter {
         int min_line = 0;            ///< CalloutLayoutInput::min_line
         int leader_min_distance = 0; ///< CalloutLayoutInput::leader_min_distance
         int row_gap = 0;             ///< CalloutRowBelow::gap: between the area and `row`
+        bool offer_row = false;      ///< lets the layout choose CalloutMode::RowBelow
     };
 
     /// Decide, then position. `regions` is nullptr for an untagged image. Returns the
