@@ -8,7 +8,7 @@
 #include "ui_overlay_pa_tuning.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/bed_occupancy_state_test_access.h"
+#include "../test_helpers/part_on_bed.h"
 #include "../test_helpers/registered_backend.h"
 #include "ams_backend_mock.h"
 #include "app_globals.h"
@@ -16,6 +16,9 @@
 #include "bed_plate_context.h"
 #include "pa_tower_start.h"
 #include "printer_state.h"
+
+#include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 
@@ -36,23 +39,22 @@ class HeadAnswerBackend : public AmsBackendMock {
 
 class TowerStartFixture : public LVGLUITestFixture {
   public:
-    TowerStartFixture() : occupancy_(get_printer_state(), nullptr) {
+    TowerStartFixture() {
         get_printer_state().init_subjects(false);
         helix::ui::modal_init_subjects();
-        occupancy_.init_subjects();
+        bed_ = std::make_unique<helix::test::PartOnBed>(get_printer_state());
         helix::ui::UpdateQueue::instance().drain();
         previous_ = get_bed_occupancy_state();
-        set_bed_occupancy_state(&occupancy_);
+        set_bed_occupancy_state(&bed_->state());
     }
     ~TowerStartFixture() override {
         set_bed_occupancy_state(previous_);
+        bed_.reset();
+        bed_.reset();
     }
 
     void put_part_on_bed() {
-        BedOccupancy verdict;
-        verdict.occupied = true;
-        verdict.job_id = "job-on-the-bed";
-        BedOccupancyStateTestAccess::set_verdict(occupancy_, verdict);
+        bed_->put(true, std::nullopt);
     }
 
     /// Click @p button on the open dialog, which closes it.
@@ -64,7 +66,7 @@ class TowerStartFixture : public LVGLUITestFixture {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    BedOccupancyState occupancy_;
+    std::unique_ptr<helix::test::PartOnBed> bed_;
     BedOccupancyState* previous_ = nullptr;
 };
 
@@ -79,12 +81,12 @@ TEST_CASE_METHOD(TowerStartFixture, "starting a tower asks once, and Start marks
     helix::ui::confirm_tower_print("Clear the plate.", owner.token(), [&starts] { ++starts; });
     answer("btn_secondary");
     CHECK(starts == 0);
-    CHECK(occupancy_.current().occupied);
+    CHECK(bed_->state().current().occupied);
 
     helix::ui::confirm_tower_print("Clear the plate.", owner.token(), [&starts] { ++starts; });
     answer("btn_primary");
     CHECK(starts == 1);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
     CHECK(ModalStack::instance().top_dialog() == nullptr);
 }
 
@@ -100,7 +102,7 @@ TEST_CASE_METHOD(TowerStartFixture, "the linear tower's setup asks one question,
     answer("btn_primary");
     // The first answer started the tower, so no "Is the bed clear?" follows it.
     CHECK(ModalStack::instance().top_dialog() == nullptr);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
     overlay.cleanup();
 }
 

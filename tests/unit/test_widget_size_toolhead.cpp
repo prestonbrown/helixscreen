@@ -18,10 +18,10 @@
 #include "ui_panel_motion.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/part_on_bed.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
@@ -44,6 +44,8 @@
 #include "toolhead_preset_config_modal.h"
 
 #include <array>
+#include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -765,17 +767,17 @@ namespace {
 /// A homed, idle, connected printer with a 0..250 x 0..250 x 0..200 envelope, the nozzle
 /// at Z 0.2, a bed occupancy state of its own, and a widget at the default 2x2.
 struct PlateFixture : public ToolheadFixture {
-    PlateFixture() : occupancy(state(), nullptr) {
+    PlateFixture() {
         std::array<lv_obj_t*, 7> panels{};
         for (auto& p : panels)
             p = lv_obj_create(lv_screen_active());
         NavigationManager::instance().set_panels(panels.data());
 
         // The widget's XML binds bed_occupied, so the state exists before the tile.
-        occupancy.init_subjects();
+        bed = std::make_unique<helix::test::PartOnBed>(state());
         drain();
         previous_occupancy = get_bed_occupancy_state();
-        set_bed_occupancy_state(&occupancy);
+        set_bed_occupancy_state(&bed->state());
 
         state().update_from_status(
             {{"toolhead", {{"axis_minimum", {0, 0, 0, 0}}, {"axis_maximum", {250, 250, 200, 0}}}}});
@@ -787,6 +789,7 @@ struct PlateFixture : public ToolheadFixture {
     }
     ~PlateFixture() override {
         set_bed_occupancy_state(previous_occupancy);
+        bed.reset();
         lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 0);
     }
 
@@ -830,7 +833,7 @@ struct PlateFixture : public ToolheadFixture {
         mock.clear_gcode_script_history();
     }
 
-    BedOccupancyState occupancy;
+    std::unique_ptr<helix::test::PartOnBed> bed;
     BedOccupancyState* previous_occupancy = nullptr;
 };
 
@@ -1013,7 +1016,7 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may b
     build(h);
     CHECK_FALSE(shown(part(h, "toolhead_bed_cleared")));
 
-    BedOccupancyStateTestAccess::set_verdict(occupancy, {true, 38.0, "job-on-the-bed"});
+    bed->put(true, 38.0);
     drain();
     CHECK(shown(part(h, "toolhead_bed_cleared")));
     // A target showing hides it, so the two never stack.
@@ -1028,13 +1031,13 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may b
     lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
     drain();
     helix::test::answer_top_modal("btn_secondary");
-    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+    CHECK(lv_subject_get_int(bed->state().get_occupied_subject()) == 1);
 
     lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
     drain();
-    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+    CHECK(lv_subject_get_int(bed->state().get_occupied_subject()) == 1);
     helix::test::answer_top_modal("btn_primary");
-    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 0);
+    CHECK(lv_subject_get_int(bed->state().get_occupied_subject()) == 0);
     CHECK_FALSE(get_global_motion_panel().is_visible());
 }
 
@@ -1138,11 +1141,7 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: a part too tall to clear is a
     PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
     build_tall(h);
     // Z travel is 200mm; a 199.5mm part leaves under 1mm above it.
-    BedOccupancy verdict;
-    verdict.occupied = true;
-    verdict.part_height_mm = 199.5;
-    verdict.job_id = "job-on-the-bed";
-    BedOccupancyStateTestAccess::set_verdict(occupancy, verdict);
+    bed->put(true, 199.5);
     drain();
     CHECK(subject_text("toolhead_lift_text") == part_too_tall_text());
 }
@@ -1155,7 +1154,7 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: Z down never ends below a par
             {json{{"kind", "z_down"}}, json{{"kind", "z_up"}}, json{{"kind", "empty"}}})},
         state());
     set_position(10000, 10000, 2000);
-    BedOccupancyStateTestAccess::set_verdict(occupancy, {true, 38.0, "job-on-the-bed"});
+    bed->put(true, 38.0);
     drain();
     build_tall(h);
     CHECK(subject_text("toolhead_preset_0_label") == "Z -10");

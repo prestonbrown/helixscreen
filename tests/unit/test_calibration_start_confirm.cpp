@@ -7,12 +7,15 @@
 #include "ui_panel_calibration_tool_offset.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/bed_occupancy_state_test_access.h"
+#include "../test_helpers/part_on_bed.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+
+#include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -23,20 +26,20 @@ namespace {
 
 class StartConfirmFixture : public LVGLUITestFixture {
   public:
-    StartConfirmFixture() : occupancy_(get_printer_state(), nullptr) {
+    StartConfirmFixture() {
         get_printer_state().init_subjects(false);
         helix::ui::modal_init_subjects();
-        occupancy_.init_subjects();
+        bed_ = std::make_unique<helix::test::PartOnBed>(get_printer_state());
         helix::ui::UpdateQueue::instance().drain();
         previous_ = get_bed_occupancy_state();
-        set_bed_occupancy_state(&occupancy_);
-        BedOccupancy verdict;
-        verdict.occupied = true;
-        verdict.job_id = "job-on-the-bed";
-        BedOccupancyStateTestAccess::set_verdict(occupancy_, verdict);
+        set_bed_occupancy_state(&bed_->state());
+        // A part is on the bed, of a height the file did not record.
+        bed_->put(true, std::nullopt);
     }
     ~StartConfirmFixture() override {
         set_bed_occupancy_state(previous_);
+        bed_.reset();
+        bed_.reset();
     }
 
     void answer(const char* button) {
@@ -47,7 +50,7 @@ class StartConfirmFixture : public LVGLUITestFixture {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    BedOccupancyState occupancy_;
+    std::unique_ptr<helix::test::PartOnBed> bed_;
     BedOccupancyState* previous_ = nullptr;
 };
 
@@ -68,12 +71,12 @@ TEST_CASE_METHOD(StartConfirmFixture, "A calibration's one question marks the be
     answer("btn_secondary");
     CHECK(starts == 0);
     CHECK(declines == 1);
-    CHECK(occupancy_.current().occupied);
+    CHECK(bed_->state().current().occupied);
 
     ask();
     answer("btn_primary");
     CHECK(starts == 1);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
     // Nothing asks "Is the bed clear?" after it.
     CHECK(ModalStack::instance().top_dialog() == nullptr);
 }
@@ -91,7 +94,7 @@ TEST_CASE_METHOD(StartConfirmFixture, "Tool offsets ask one question with a prin
     REQUIRE(ModalStack::instance().top_dialog() != nullptr);
     answer("btn_primary");
     CHECK(ModalStack::instance().top_dialog() == nullptr);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
     panel.cleanup();
     get_printer_state().set_hardware(PrinterDiscovery{});
 }

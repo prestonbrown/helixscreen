@@ -6,20 +6,12 @@
 
 namespace helix {
 
-/// Sets BedOccupancyState's verdict directly, so a plate test can put a part of a chosen
-/// height on the bed without staging a print history that produces it.
+/// Reaches the state's history retry timer, a repeating timer the test
+/// harness's timer pump skips.
 class BedOccupancyStateTestAccess {
   public:
-    static void set_verdict(BedOccupancyState& state, const BedOccupancy& verdict) {
-        state.current_ = verdict;
-        if (state.subjects_initialized_) {
-            lv_subject_set_int(&state.occupied_, verdict.occupied ? 1 : 0);
-        }
-        state.bump_version();
-    }
-
-    /// Runs the history retry timer's callback once, as its period elapsing would. The test
-    /// harness's timer pump skips repeating timers. False when no retry is armed.
+    /// Runs the history retry timer's callback once, as its period elapsing would.
+    /// False when no retry is armed.
     static bool fire_history_retry(BedOccupancyState& state) {
         lv_timer_t* timer = state.history_retry_timer_.get();
         if (!timer) {

@@ -4,12 +4,13 @@
 #include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/bed_occupancy_state_test_access.h"
+#include "../test_helpers/part_on_bed.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 
+#include <memory>
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
@@ -18,28 +19,26 @@ using namespace helix;
 
 namespace {
 
-/// A printer state that has reported no axis bounds, and a bed-occupancy verdict of the
-/// test's choosing published as the global state.
+/// A printer state that has reported no axis bounds, and a bed-occupancy state
+/// over a history of the test's choosing published as the global state.
 class PlateContextFixture : public LVGLUITestFixture {
   public:
-    PlateContextFixture() : occupancy_(printer_state_, nullptr) {
+    PlateContextFixture() {
         printer_state_.init_subjects(false);
         SettingsManager::instance().init_subjects();
-        occupancy_.init_subjects();
+        bed_ = std::make_unique<helix::test::PartOnBed>(printer_state_);
         ui::UpdateQueue::instance().drain();
         previous_ = get_bed_occupancy_state();
-        set_bed_occupancy_state(&occupancy_);
+        set_bed_occupancy_state(&bed_->state());
     }
     ~PlateContextFixture() override {
         set_bed_occupancy_state(previous_);
+        bed_.reset();
     }
 
+    /// A part on the bed, @p height tall or of a height not recorded, or no part.
     void put_part(bool occupied, std::optional<double> height) {
-        BedOccupancy verdict;
-        verdict.occupied = occupied;
-        verdict.part_height_mm = height;
-        verdict.job_id = occupied ? "job-on-the-bed" : "";
-        BedOccupancyStateTestAccess::set_verdict(occupancy_, verdict);
+        bed_->put(occupied, height);
     }
 
     /// Click @p button on the open dialog, which closes it.
@@ -52,7 +51,7 @@ class PlateContextFixture : public LVGLUITestFixture {
     }
 
     PrinterState printer_state_;
-    BedOccupancyState occupancy_;
+    std::unique_ptr<helix::test::PartOnBed> bed_;
     BedOccupancyState* previous_ = nullptr;
 };
 
@@ -114,13 +113,13 @@ TEST_CASE_METHOD(PlateContextFixture,
     answer("btn_secondary");
     CHECK(starts == 1);
     CHECK(declines == 1);
-    CHECK(occupancy_.current().occupied);
+    CHECK(bed_->state().current().occupied);
 
     ensure_bed_clear_then(owner.token(), start, declined);
     answer("btn_primary");
     CHECK(starts == 2);
     CHECK(declines == 1);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
 
     // A print that takes the printer while the question is up gets no calibration moves.
     put_part(true, std::nullopt);
@@ -130,7 +129,7 @@ TEST_CASE_METHOD(PlateContextFixture,
     lv_subject_set_int(state().print_state().get_machine_motion_blocked_subject(), 0);
     CHECK(starts == 2);
     CHECK(declines == 2);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
 
     // A screen closed while the question is up starts nothing, but the answer still
     // clears the bed.
@@ -139,5 +138,5 @@ TEST_CASE_METHOD(PlateContextFixture,
     owner.invalidate();
     answer("btn_primary");
     CHECK(starts == 2);
-    CHECK_FALSE(occupancy_.current().occupied);
+    CHECK_FALSE(bed_->state().current().occupied);
 }

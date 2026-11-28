@@ -25,6 +25,7 @@
 #include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/part_on_bed.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
@@ -43,6 +44,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -156,15 +159,12 @@ namespace {
 /// Puts a part of @p height_mm on the bed for the panel to see, for the scope's life.
 class ScopedPartOnBed {
   public:
-    explicit ScopedPartOnBed(double height_mm) : state_(get_printer_state(), nullptr) {
-        state_.init_subjects();
-        // The state's own observers fire on the drain and re-decide from its (empty)
-        // history; the verdict goes in after them.
+    explicit ScopedPartOnBed(double height_mm) {
+        bed_ = std::make_unique<helix::test::PartOnBed>(get_printer_state());
         MoveTabFixture::drain();
-        helix::BedOccupancyStateTestAccess::set_verdict(state_,
-                                                        {true, height_mm, "job-on-the-bed"});
+        bed_->put(true, height_mm);
         previous_ = helix::get_bed_occupancy_state();
-        helix::set_bed_occupancy_state(&state_);
+        helix::set_bed_occupancy_state(&bed_->state());
     }
     ~ScopedPartOnBed() {
         helix::set_bed_occupancy_state(previous_);
@@ -173,7 +173,7 @@ class ScopedPartOnBed {
     ScopedPartOnBed& operator=(const ScopedPartOnBed&) = delete;
 
   private:
-    helix::BedOccupancyState state_;
+    std::unique_ptr<helix::test::PartOnBed> bed_;
     helix::BedOccupancyState* previous_ = nullptr;
 };
 
