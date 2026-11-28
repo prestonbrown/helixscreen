@@ -15,7 +15,6 @@
 namespace helix {
 class IMoonrakerAPI;
 class PrinterState;
-struct PluginInstallModalTestAccess; // test-only friend (tests/test_helpers/)
 } // namespace helix
 
 namespace helix::ui {
@@ -111,6 +110,12 @@ class PluginInstallModal : public Modal {
     using JobCheck = std::function<bool()>;
     void set_job_check(JobCheck check);
 
+    /// Set what runs install.sh off the main thread. The submitter is handed
+    /// the work and must run it on another thread; unset submits it to
+    /// HttpExecutor::slow().
+    using InstallSubmitter = std::function<void(std::function<void()>)>;
+    void set_install_submitter(InstallSubmitter submitter);
+
   protected:
     void on_show() override;
     void on_hide() override;
@@ -121,11 +126,6 @@ class PluginInstallModal : public Modal {
     void on_dismissed() override;
 
   private:
-    friend struct helix::PluginInstallModalTestAccess;
-
-    /// Runs the install off the main thread; unset submits to HttpExecutor::slow().
-    using InstallSubmitter = std::function<void(std::function<void()>)>;
-
     helix::HelixPluginInstaller* installer_ = nullptr;
     MoonrakerRestarter moonraker_restarter_;
     JobGate job_gate_;
