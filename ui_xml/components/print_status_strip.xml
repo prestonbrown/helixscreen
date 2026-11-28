@@ -21,6 +21,10 @@
     <style name="progress_row"
            height="content" flex_grow="1" min_height="#ps_strip_button" flex_main_place="space_evenly"/>
     <style name="progress_stacked" width="100%" height="content"/>
+    <!-- The printing line's spare width: after the finish time where elapsed
+         follows it, after the percent where elapsed is hidden, so the times
+         sit at the right edge. -->
+    <style name="line_grow" flex_grow="1"/>
   </styles>
   <view extends="ui_card"
         width="100%" height="content" style_pad_all="#space_sm" style_pad_gap="#space_md" style_radius="#border_radius"
@@ -40,10 +44,14 @@
               width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
               style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
         <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
-        <text_body name="print_percent" bind_text="print_progress_text" style_text_font="#font_body_bold"/>
+        <text_body name="print_percent" bind_text="print_progress_text" style_text_font="#font_body_bold">
+          <bind_style_if name="line_grow" cond="ui_breakpoint le 1"/>
+        </text_body>
         <icon name="remaining_icon" src="clock" size="xs" variant="secondary" clickable="false"/>
         <text_small name="print_remaining" bind_text="print_remaining" style_text_color="#text_muted"/>
-        <text_small name="print_eta" bind_text="print_eta" style_text_color="#text_muted" flex_grow="1" long_mode="dots"/>
+        <text_small name="print_eta" bind_text="print_eta" style_text_color="#text_muted" long_mode="dots">
+          <bind_style_if name="line_grow" cond="ui_breakpoint gt 1"/>
+        </text_small>
         <!-- Micro and tiny keep percent, time left and finish: elapsed does
              not fit beside them. -->
         <icon name="elapsed_icon" src="hourglass" size="xs" variant="secondary" clickable="false">
