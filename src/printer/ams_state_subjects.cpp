@@ -243,6 +243,13 @@ void AmsState::init_subjects(bool register_xml) {
         helix::xml::register_subject_in_current_scope("ams_current_weight_text",
                                                       &current_weight_text_);
 
+    current_has_material_.init_int(0);
+    subjects_.register_subject(&current_has_material_,
+                               register_xml ? "ams_current_has_material" : nullptr);
+    if (register_xml)
+        helix::xml::register_subject_in_current_scope("ams_current_has_material",
+                                                      &current_has_material_);
+
     current_has_weight_.init_int(0);
     subjects_.register_subject(&current_has_weight_,
                                register_xml ? "ams_current_has_weight" : nullptr);
@@ -847,6 +854,8 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_current_slot_text", &current_slot_text_);
     helix::xml::register_subject_in_current_scope("ams_current_weight_text", &current_weight_text_);
     helix::xml::register_subject_in_current_scope("ams_current_has_weight", &current_has_weight_);
+    helix::xml::register_subject_in_current_scope("ams_current_has_material",
+                                                  &current_has_material_);
     helix::xml::register_subject_in_current_scope("current_color", &current_color_);
     helix::xml::register_subject_in_current_scope(
         "current_fill_pct",

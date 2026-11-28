@@ -32,6 +32,8 @@
 
 using helix::ui::UpdateQueue;
 
+#include "ui_breakpoint.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
@@ -39,6 +41,7 @@ using helix::ui::UpdateQueue;
 #include <lvgl.h>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -179,4 +182,111 @@ TEST_CASE_METHOD(MetadataStripFixture,
     // time ends inside the line.
     REQUIRE(right_edge_screen(eta) <= left_edge_screen(elapsed));
     REQUIRE(right_edge_screen(elapsed) <= right_edge_screen(line));
+}
+
+TEST_CASE_METHOD(MetadataStripFixture,
+                 "Strip: micro and tiny give the layer count the filament's room and drop elapsed",
+                 "[print_status][metadata_strip][micro_declutter]") {
+    lv_subject_t* breakpoint = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(breakpoint != nullptr);
+    const int32_t original = lv_subject_get_int(breakpoint);
+    REQUIRE(original == to_int(UiBreakpoint::Medium));
+
+    lv_obj_t* filament = label("filament_cluster");
+    lv_obj_t* layer = label("layer_progress_label");
+    lv_obj_t* elapsed_icon = label("elapsed_icon");
+    lv_obj_t* elapsed = label("print_elapsed");
+    lv_label_set_text(label("filament_used_label"), "92.6m");
+
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(lv_obj_is_hidden(filament));
+    CHECK_FALSE(lv_obj_is_hidden(elapsed_icon));
+    CHECK_FALSE(lv_obj_is_hidden(elapsed));
+    const int32_t layer_width_medium = lv_obj_get_width(layer);
+
+    for (const UiBreakpoint cramped : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
+        lv_subject_set_int(breakpoint, to_int(cramped));
+        lv_obj_update_layout(root_);
+        CAPTURE(to_int(cramped), layer_width_medium, lv_obj_get_width(layer));
+        CHECK(lv_obj_is_hidden(filament));
+        CHECK(lv_obj_is_hidden(elapsed_icon));
+        CHECK(lv_obj_is_hidden(elapsed));
+        CHECK(lv_obj_get_width(layer) > layer_width_medium);
+    }
+
+    lv_subject_set_int(breakpoint, to_int(UiBreakpoint::Small));
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(lv_obj_is_hidden(filament));
+    CHECK_FALSE(lv_obj_is_hidden(elapsed));
+
+    lv_subject_set_int(breakpoint, original);
+}
+
+namespace {
+
+/// Sets the named int subjects for one case and restores them on scope exit.
+class SubjectValues {
+  public:
+    void set(const char* name, int32_t value) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        saved_.emplace_back(subject, lv_subject_get_int(subject));
+        lv_subject_set_int(subject, value);
+    }
+    ~SubjectValues() {
+        for (auto it = saved_.rbegin(); it != saved_.rend(); ++it) {
+            lv_subject_set_int(it->first, it->second);
+        }
+    }
+
+  private:
+    std::vector<std::pair<lv_subject_t*, int32_t>> saved_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(MetadataStripFixture,
+                 "Strip: the filament line hides a lone loaded glyph and an unnamed lane",
+                 "[print_status][metadata_strip][micro_declutter]") {
+    lv_obj_t* line = label("filament_ams_status_row");
+    lv_obj_t* glyph_row = label("filament_status_row");
+    lv_obj_t* lane_row = label("ams_status_row");
+    SubjectValues subjects;
+    subjects.set("toolchange_visible", 0);
+
+    SECTION("no AMS: a sensor reading loaded hides the line") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 1);
+        subjects.set("filament_runout_scoped", 1);
+        CHECK(lv_obj_is_hidden(line));
+    }
+    SECTION("no AMS: runout and disabled stay on screen") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 1);
+        for (const int32_t actionable : {0, 2}) {
+            CAPTURE(actionable);
+            subjects.set("filament_runout_scoped", actionable);
+            CHECK_FALSE(lv_obj_is_hidden(line));
+            CHECK_FALSE(lv_obj_is_hidden(glyph_row));
+        }
+    }
+    SECTION("AMS: an active lane with no filament name hides the line") {
+        subjects.set("ams_slot_count", 4);
+        subjects.set("ams_current_tool", 0);
+        subjects.set("filament_sensor_count", 1);
+        subjects.set("filament_runout_scoped", 1);
+        subjects.set("ams_current_has_material", 0);
+        CHECK(lv_obj_is_hidden(line));
+
+        subjects.set("ams_current_has_material", 1);
+        CHECK_FALSE(lv_obj_is_hidden(line));
+        CHECK_FALSE(lv_obj_is_hidden(lane_row));
+        CHECK(lv_obj_is_hidden(glyph_row));
+    }
+    SECTION("a tool change count keeps the line") {
+        subjects.set("ams_slot_count", 0);
+        subjects.set("filament_sensor_count", 0);
+        subjects.set("toolchange_visible", 1);
+        CHECK_FALSE(lv_obj_is_hidden(line));
+    }
 }

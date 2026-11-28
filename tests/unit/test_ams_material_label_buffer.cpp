@@ -86,6 +86,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState current-material label carries a ful
         ams.sync_current_loaded_from_backend();
 
         CHECK(material_text() == "Jet Black PLA");
+        CHECK(lv_subject_get_int(ams.get_current_has_material_subject()) == 1);
     }
 
     ams.clear_backends();

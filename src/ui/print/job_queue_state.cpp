@@ -355,7 +355,7 @@ void JobQueueState::update_subjects() {
     // composed strings. They settle before the count: count observers re-read them.
     const std::string next_display =
         cached_jobs_.empty() ? std::string{}
-                             : helix::gcode::get_display_filename(cached_jobs_.front().filename);
+                             : helix::gcode::get_job_display_name(cached_jobs_.front().filename);
 
     // Both surfaces bind their visibility to the count published last.
     std::snprintf(up_next_text_buffer_, sizeof(up_next_text_buffer_), "%s",
