@@ -23,6 +23,16 @@
 
 namespace helix::temp_graph_internal {
 
+namespace {
+
+int64_t wall_clock_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+} // namespace
+
 // Compress a time-ordered (ascending) list of sample timestamps down to at most
 // `max_points` by bucketing the span into `max_points` equal time slices and
 // keeping the last sample in each non-empty slice. The most recent sample is
@@ -124,7 +134,8 @@ std::vector<TempGraphController*>& live_controllers() {
 
 TempGraphController::TempGraphController(lv_obj_t* container,
                                          const TempGraphControllerConfig& config)
-    : config_(config), container_(container) {
+    : config_(config), container_(container),
+      now_ms_fn_(config.now_ms ? config.now_ms : &temp_graph_internal::wall_clock_ms) {
     live_controllers().push_back(this);
 
     create_graph();

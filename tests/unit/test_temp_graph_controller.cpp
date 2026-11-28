@@ -9,7 +9,6 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -611,12 +610,12 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
         {"extruder", lv_color_hex(0xFF4444), true},
         {"heater_bed", lv_color_hex(0x88C0D0), true},
     };
+    constexpr int64_t slot = UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;
+    int64_t now = 1'000'000 * slot;
+    cfg.now_ms = [&now] { return now; };
     auto controller = std::make_unique<TempGraphController>(screen, cfg);
     REQUIRE(controller->is_valid());
 
-    constexpr int64_t slot = UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;
-    int64_t now = 1'000'000 * slot;
-    TempGraphControllerTestAccess::set_clock(*controller, [&now] { return now; });
     queue.drain();
 
     // Nozzle is the first series: read its newest sample and ring position.
@@ -703,11 +702,10 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
 
     TempGraphControllerConfig cfg;
     cfg.series = {{"extruder", lv_color_hex(0xFF0000), true}};
+    int64_t now_ms = 1'000'000;
+    cfg.now_ms = [&now_ms]() { return now_ms; };
     auto controller = std::make_unique<TempGraphController>(container, cfg);
     REQUIRE(controller->is_valid());
-
-    int64_t now_ms = 1'000'000;
-    TempGraphControllerTestAccess::set_clock(*controller, [&now_ms]() { return now_ms; });
 
     lv_obj_delete(container);
     CHECK_FALSE(controller->is_valid());
