@@ -43,6 +43,10 @@ void PluginInstallModal::set_job_check(JobCheck check) {
     job_check_ = std::move(check);
 }
 
+void PluginInstallModal::set_install_submitter(InstallSubmitter submitter) {
+    install_submitter_ = std::move(submitter);
+}
+
 bool helix::ui::job_blocks_plugin_change(helix::PrinterState& printer_state) {
     return job_holds_machine(printer_state.print_state().get_print_lifecycle());
 }
