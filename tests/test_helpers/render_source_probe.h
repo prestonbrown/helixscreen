@@ -63,6 +63,18 @@ class RenderSourceProbe {
         return calls() == calls_at_clear;
     }
 
+    /// What a source captured, for a source of a case's own: it reports its
+    /// destruction at the end of a slow death, so a clear that returned while
+    /// a copy of the source still held it is caught.
+    struct Captured {
+        explicit Captured(std::atomic<bool>& flag) : gone(flag) {}
+        ~Captured() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            gone = true;
+        }
+        std::atomic<bool>& gone;
+    };
+
   private:
     void call() const {
         const auto started = std::chrono::steady_clock::now();
@@ -72,18 +84,6 @@ class RenderSourceProbe {
         in_call_ = false;
         last_call_ = std::chrono::steady_clock::now() - started;
     }
-
-    // What the source captured is gone when the clear returns. The capture
-    // says so only at the end of a slow death, so a clear that returned while
-    // a copy of the source still held it is caught.
-    struct Captured {
-        explicit Captured(std::atomic<bool>& flag) : gone(flag) {}
-        ~Captured() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(30));
-            gone = true;
-        }
-        std::atomic<bool>& gone;
-    };
 
     mutable std::atomic<bool> in_call_{false};
     mutable std::atomic<int> calls_{0};

@@ -28,9 +28,11 @@ class RenderSourceSlot {
     /// on its own copy: clear() is what waits.
     void set(Source source);
 
-    /// Ends the source and returns once no call uses it. Asked from inside a
-    /// call, on the thread running it, the wait could never return: the source
-    /// still ends, and the call in flight is the last.
+    /// Ends the source and returns once no call uses the source, so the owner
+    /// may free what it captured. Asked from inside a call on this slot, it
+    /// waits for every other call but not for the one it was asked from: that
+    /// call runs on its copy until it returns, and what the source captured
+    /// must not be freed before then.
     void clear();
 
     /// Runs the source on a copy. False when no source is set.

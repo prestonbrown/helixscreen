@@ -47,8 +47,10 @@ class TightLoop {
         }
     }
 
-    std::thread thread_;
+    // Declared before the thread: members are initialized in this order, and
+    // the thread reads stop_ from its first instruction.
     std::atomic<bool> stop_{false};
+    std::thread thread_;
 };
 
 } // namespace
@@ -121,8 +123,10 @@ TEST_CASE("RenderSourceSlot: call() runs the source, and set() names what the ne
     CHECK(slot.empty());
 }
 
-TEST_CASE("RenderSourceSlot: a clear() from inside the source ends the source without waiting",
-          "[sound][render_source_slot]") {
+TEST_CASE(
+    "RenderSourceSlot: a clear() from inside the source ends the source without waiting for its "
+    "own call",
+    "[sound][render_source_slot]") {
     RenderSourceSlot slot;
     int calls = 0;
     slot.set([&](float*, size_t, int) {
@@ -131,10 +135,101 @@ TEST_CASE("RenderSourceSlot: a clear() from inside the source ends the source wi
     });
     float buf[4] = {};
 
-    // A wait here could never return: this call is what it waits for.
+    // A wait for this call could never return.
     CHECK(slot.call(buf, 4, kRate));
     CHECK(calls == 1);
     CHECK(slot.empty());
     CHECK_FALSE(slot.call(buf, 4, kRate));
     CHECK(calls == 1);
+}
+
+// A thread can sit inside a call on one slot and clear another. Only a call
+// on the slot being cleared is its own.
+TEST_CASE(
+    "RenderSourceSlot: a clear() of one slot from inside another slot's call waits out that slot's "
+    "call",
+    "[sound][render_source_slot]") {
+    RenderSourceProbe probe;
+    RenderSourceSlot cleared;
+    RenderSourceSlot outer;
+    cleared.set(probe.source());
+    TightLoop loop(cleared);
+
+    std::chrono::nanoseconds clear_wait{};
+    float buf[64] = {};
+    outer.set([&](float*, size_t, int) {
+        const auto started = std::chrono::steady_clock::now();
+        cleared.clear();
+        clear_wait = std::chrono::steady_clock::now() - started;
+    });
+    REQUIRE(probe.wait_for_call_in_flight());
+
+    // Inside this call on the other slot, the slot the loop drives is cleared.
+    CHECK(outer.call(buf, 64, kRate));
+
+    CHECK(within_one_call(clear_wait, probe.last_call()));
+    CHECK(probe.captured_gone());
+    CHECK_FALSE(probe.in_call());
+}
+
+// Two callers on one slot. A clear() asked from inside one caller's call
+// cannot wait for that call, which ends only once the clear returns, and
+// waits for the other's.
+TEST_CASE("RenderSourceSlot: a clear() from inside a call waits out another caller's call",
+          "[sound][render_source_slot]") {
+    RenderSourceSlot slot;
+    const auto clearer = std::this_thread::get_id();
+    // The other caller's call ends only once the clear has been asked for and
+    // has had time to start waiting, so the clear has that call in front of
+    // it whatever the scheduling.
+    std::atomic<bool> other_in_call{false};
+    std::atomic<bool> clear_asked{false};
+    std::atomic<bool> captured_gone{false};
+    std::chrono::nanoseconds clear_wait{};
+    bool other_in_call_when_clear_returned = true;
+    bool captured_gone_inside_the_call = true;
+    // The capture lives in the source only: the slot's copy, and the copy
+    // each call runs on.
+    slot.set([&slot, clearer, &other_in_call, &clear_asked, &captured_gone, &clear_wait,
+              &other_in_call_when_clear_returned, &captured_gone_inside_the_call,
+              captured = std::make_shared<RenderSourceProbe::Captured>(captured_gone)](
+                 float*, size_t, int) {
+        if (std::this_thread::get_id() != clearer) {
+            other_in_call = true;
+            const auto give_up = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            while (!clear_asked.load() && std::chrono::steady_clock::now() < give_up) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            other_in_call = false;
+            return;
+        }
+        const auto started = std::chrono::steady_clock::now();
+        clear_asked = true;
+        slot.clear();
+        clear_wait = std::chrono::steady_clock::now() - started;
+        // Read while this call still holds its copy of the source.
+        other_in_call_when_clear_returned = other_in_call.load();
+        captured_gone_inside_the_call = captured_gone.load();
+    });
+    TightLoop loop(slot);
+    const auto in_call_by = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!other_in_call.load() && std::chrono::steady_clock::now() < in_call_by) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    REQUIRE(other_in_call.load());
+
+    float buf[64] = {};
+    CHECK(slot.call(buf, 64, kRate));
+
+    // The other caller's call was waited out, and this call's own copy of the
+    // source lived until the call returned.
+    CHECK(within_one_call(clear_wait, std::chrono::milliseconds(20)));
+    CHECK_FALSE(other_in_call_when_clear_returned);
+    CHECK_FALSE(captured_gone_inside_the_call);
+    const auto gone_by = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (!captured_gone.load() && std::chrono::steady_clock::now() < gone_by) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CHECK(captured_gone.load());
 }
