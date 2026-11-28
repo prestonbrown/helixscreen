@@ -47,7 +47,8 @@
          actually used) because theme_manager_find_xml_files() only scans
          top-level ui_xml/*.xml for the "_micro"/"_tiny"/... auto-discovery
          that produces the responsive #bed_mesh_profile_row_height token
-         (check_responsive_token_scope.py, prestonbrown/helixscreen#1211) — a
+         (the responsive-token-scope rule of scripts/check_xml_rules.py,
+         prestonbrown/helixscreen#1211) — a
          components/ subdirectory declaration is invisible to it. Once
          declared here the token resolves globally, including from the
          profiles card component.

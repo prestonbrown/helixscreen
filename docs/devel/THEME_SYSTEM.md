@@ -773,7 +773,7 @@ A theme JSON carries only the 16 palette colors (`ModePalette::color_names()` in
    <px name="my_space_large" value="16"/>
    ```
 
-   The declaration MUST be at the top level of `ui_xml/` - discovery does not recurse into `ui_xml/components/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by `scripts/check_responsive_token_scope.py` (#1211).
+   The declaration MUST be at the top level of `ui_xml/` - discovery does not recurse into `ui_xml/components/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by the `responsive-token-scope` rule of `scripts/check_xml_rules.py` (#1211).
 
 2. Classify the axis. Heights, top/bottom padding and vertical maxima go in `VERTICAL_AXIS_TOKENS` (`src/ui/theme/theme_responsive.cpp`); widths and anything axis-neutral (all `space_*`) need no change. If in doubt, neutral.
 

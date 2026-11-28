@@ -63,8 +63,8 @@ run_gate() {
 }
 
 @test "lint scripts that NAME the staged path to exclude it stay quiet" {
-    # This is the shape of check_overlay_width.py et al. Flagging it would make
-    # the gate fire on four existing scripts and get it switched off.
+    # This is the shape of the ui_xml rules' skip list. Flagging it would make
+    # the gate fire on the existing lints and get it switched off.
     make_fixture
     cat > "$WORK/scripts/check_thing.py" <<'EOF'
 # android/app/src/main/assets/ui_xml/ is a gradle copy of ui_xml/, not a source

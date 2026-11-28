@@ -338,7 +338,8 @@ place the declaration can live. Token discovery is top-level-only, so a `<px nam
 declared in `ui_xml/components/` is never registered and every `#foo` referencing it silently
 resolves to nothing. Declare in `globals.xml` (or another top-level file), reference it from
 anywhere. See
-[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md) §2 and `scripts/check_responsive_token_scope.py`.
+[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md) §2 and the `responsive-token-scope` rule of
+`scripts/check_xml_rules.py`.
 
 Layout XML should use these tokens - not hardcoded values:
 

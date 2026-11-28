@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for two inline gates: the hardcoded-color ratchet and spacing-token
-# check of scripts/qc/design_tokens.sh, and the merge-conflict-marker check of
+# Meta-tests for two inline gates: the hardcoded-color ratchet of
+# scripts/qc/design_tokens.sh, and the merge-conflict-marker check of
 # scripts/qc/phase1.sh. Each case builds a scratch tree and runs the gate there.
 
 load helpers
@@ -12,7 +12,6 @@ setup() {
     ROOT="$BATS_TEST_TMPDIR/tree"
     mkdir -p "$ROOT/src/ui" "$ROOT/src/rendering" "$ROOT/include" "$ROOT/scripts"
     cp "$REPO/scripts/ratchet.py" "$ROOT/scripts/"
-    printf 'import sys\nsys.exit(0)\n' > "$ROOT/scripts/check_shipped_spacing_tokens.py"
 }
 
 # colors <n> <file>: n hardcoded lv_color_hex(0x...) lines.
@@ -53,13 +52,6 @@ tokens() {
     tokens
     [ "$status" -eq 0 ]
     contains "0 hardcoded colors" "$output"
-}
-
-@test "tokens: a failing spacing-token check fails the gate and shows its report" {
-    printf 'print("token space_x is not shipped")\nraise SystemExit(1)\n' > "$ROOT/scripts/check_shipped_spacing_tokens.py"
-    tokens
-    [ "$status" -eq 1 ]
-    contains "token space_x is not shipped" "$output"
 }
 
 phase1() {

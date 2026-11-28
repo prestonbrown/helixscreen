@@ -161,7 +161,7 @@ That is deliberate. Discovery is alphabetical last-wins, so scanning subdirector
 
 So declare responsive tokens in `ui_xml/globals.xml` (or another top-level token file such as `ams_tokens.xml`) and reference them with `#token` from anywhere. Non-responsive component-local `<consts>` are fine inside `ui_xml/components/`; they resolve through the component's own scope and never reach discovery.
 
-`scripts/check_responsive_token_scope.py` fails the build if a suffixed token is declared below the top level. Background: prestonbrown/helixscreen#1211.
+The `responsive-token-scope` rule of `scripts/check_xml_rules.py` fails the build if a suffixed token is declared below the top level. Background: prestonbrown/helixscreen#1211.
 
 ### Which font tiers actually exist
 
@@ -499,9 +499,9 @@ The tokens behind it, per breakpoint:
 The actions slot pads its ends by `#header_action_hit` and spaces its buttons by
 `#header_action_gap`. `collapse="auto"` (the default) hides the label on micro and tiny and in
 portrait below the large breakpoint; `collapse="never"` keeps it. A header holds three actions
-at most and one primary. `scripts/check_header_actions.py` (gated as `qc_header_actions`) fails
-anything else in the slot and any styling attribute on an action, and warns past three actions
-or one primary. The full prop table and gate rules are in
+at most and one primary. The `header-actions` rule of `scripts/check_xml_rules.py`, run as
+`qc_xml_rules`, fails anything else in the slot and any styling attribute on an action, and
+warns past three actions or one primary. The full prop table and gate rules are in
 [LVGL9_XML_GUIDE.md § header_action](LVGL9_XML_GUIDE.md#header_action).
 
 ### icon
@@ -892,8 +892,8 @@ every screen size. To change a dialog's layout:
 - The title, its icon and the close button are props on the view (`title`, `icon`,
   `icon_variant`, `hide_close`), not widgets you can move.
 - Never raise the card's height past 85% or pin content below the body: the chrome-budget
-  gate (`scripts/check_modal_chrome_budget.py`) refuses it, because a card taller than its
-  cap clips its buttons off the bottom on a short screen.
+  rule (`modal-chrome-budget` in `scripts/check_xml_rules.py`) refuses it, because a card
+  taller than its cap clips its buttons off the bottom on a short screen.
 
 [MODAL_SYSTEM.md](MODAL_SYSTEM.md#dialog_frame) has the props, slots and the few dialogs
 that keep their own card.
@@ -982,7 +982,7 @@ Two things you *can* declare, both in C++:
   XML and call `NavigationManager::set_overlay_width_unmanaged()` once after
   creating the widget, or push will overwrite it.
 
-`scripts/check_overlay_width.py` fails the build if XML names a width class.
+The `overlay-width` rule of `scripts/check_xml_rules.py` fails the build if XML names a width class.
 Background: `include/overlay_class.h` and prestonbrown/helixscreen#1178.
 
 ---

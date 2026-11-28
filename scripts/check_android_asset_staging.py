@@ -19,10 +19,10 @@ source to every tool that walks the repo. One such snapshot went 4 months and
 the repo:
 
   - Four separate lint gates independently grew a hand-written exclusion for
-    this path (check_overlay_width.py, check_hardcoded_pixels.py,
-    check_modal_chrome_budget.py, check_responsive_token_scope.py). Four authors
-    each debugged the same false positives before working out that the files
-    were not real.
+    this path (check_hardcoded_pixels.py, and the overlay-width,
+    modal-chrome-budget and responsive-token-scope rules of
+    check_xml_rules.py). Four authors each debugged the same false positives
+    before working out that the files were not real.
   - A release checklist told developers the Android tree "carries its own copy",
     i.e. edit it too. Edits there are erased by the next Gradle build.
   - mk/filaments.mk cp'd assets/filaments.json into the staged tree after every

@@ -45,41 +45,6 @@ fi
 
 echo ""
 
-echo "📏 Checking responsive token placement..."
-
-# theme_manager_find_xml_files() skips subdirectories, so a responsive token
-# declared below the top level of ui_xml/ is never registered and every #token
-# reading it resolves to nothing, silently (prestonbrown/helixscreen#1211).
-# Always whole-tree: the scan is a regex over ~330 small files, and the rule is
-# about where a file SITS, so a staged-only view buys nothing.
-if python3 scripts/check_responsive_token_scope.py >/tmp/responsive_token_scope.out 2>&1; then
-  echo "✅ Responsive tokens are all top-level"
-else
-  cat /tmp/responsive_token_scope.out
-  EXIT_CODE=1
-fi
-
-echo ""
-
-echo "📐 Checking modal chrome budget..."
-
-# #dialog_content_max is sized for ONE chrome shape: header + content + divider
-# + button row. A modal that pins an extra block below the scroll area overruns
-# the 85% card cap, and because the root is height="content" + scrollable=false
-# the overflow falls off the BOTTOM — the button row, leaving a modal the user
-# cannot dismiss (prestonbrown/helixscreen#1277). LVGL cannot rescue this in
-# layout: lv_flex.c has grow but no shrink. Whole-tree: the rule is about a
-# file's own element order, so a staged-only view would miss a modal whose
-# budget was broken by an edit to a component it embeds.
-if python3 scripts/check_modal_chrome_budget.py >/tmp/modal_chrome_budget.out 2>&1; then
-  echo "✅ Modal chrome budget: every pinned block is accounted for"
-else
-  cat /tmp/modal_chrome_budget.out
-  EXIT_CODE=1
-fi
-
-echo ""
-
 echo "📜 Checking panel-widget scroll declarations..."
 
 # <lv_obj> keeps LVGL's LV_OBJ_FLAG_SCROLLABLE default, which is ON. Our theme

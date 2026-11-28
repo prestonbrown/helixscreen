@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_responsive_token_scope.py — the responsive-token
-# location gate.
+# Meta-tests for the responsive-token-scope rule of scripts/check_xml_rules.py,
+# the responsive-token location gate.
 #
 # Token discovery calls theme_manager_find_xml_files() with recursive=false,
 # which skips subdirectories outright (src/ui/theme/theme_token_scan.cpp), so token
@@ -24,7 +24,7 @@
 
 load helpers
 
-GATE="scripts/check_responsive_token_scope.py"
+GATE="scripts/check_xml_rules.py --rule responsive-token-scope"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -38,7 +38,7 @@ run_gate() {
     local subdir="$1" name="$2" body="$3"
     mkdir -p "$FIXTURE_DIR/ui_xml/$subdir"
     printf '%s\n' "$body" > "$FIXTURE_DIR/ui_xml/$subdir/$name.xml"
-    run python3 "$GATE" "$FIXTURE_DIR/ui_xml/$subdir/$name.xml"
+    run python3 $GATE "$FIXTURE_DIR/ui_xml/$subdir/$name.xml"
 }
 
 # ------------------------------------------------- the shape that breaks the UI
@@ -196,12 +196,12 @@ run_gate() {
   </consts>
   <view name="card" extends="lv_obj"/>
 </component>'
-    gate="$PWD/$GATE"
+    gate="$PWD/${GATE%% *}"
     root="$(make_worktree_root)"
     mkdir -p "$root/ui_xml/components" "$root/ui_xml/.worktrees/other/components"
     printf '%s\n' "$bad" > "$root/ui_xml/components/own_card.xml"
     printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/components/peer_card.xml"
-    run bash -c 'cd "$1" && python3 "$2"' _ "$root" "$gate"
+    run bash -c 'cd "$1" && python3 "$2" --rule responsive-token-scope' _ "$root" "$gate"
     [ "$status" -eq 1 ]
     contains "own_card.xml" "$output"
     lacks "peer_card.xml" "$output"

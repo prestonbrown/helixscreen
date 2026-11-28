@@ -53,14 +53,6 @@ if [ "$HEX_COUNT" -lt "$HEX_BASELINE" ]; then
   fi
 fi
 
-# A spacing token C++ reads must be declared in a shipped XML file, not only
-# in a dev panel's, or release builds read it as missing.
-if ! python3 scripts/check_shipped_spacing_tokens.py >/tmp/shipped_spacing.out 2>&1; then
-  echo ""
-  cat /tmp/shipped_spacing.out
-  TOKEN_EXIT=1
-fi
-
 section_time $SECTION_START
 if [ "$TOKEN_EXIT" -eq 0 ]; then
   echo ""

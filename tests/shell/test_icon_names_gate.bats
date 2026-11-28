@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_icon_names.py — the icon-name resolution gate.
+# Meta-tests for the icon-names rule of scripts/check_xml_rules.py.
 #
 # `<icon src="NAME">` resolves NAME through helix::ui::icon::lookup_codepoint() at
 # runtime. A name absent from include/ui_icon_codepoints.h does not fail the
@@ -18,7 +18,7 @@
 # and a gate that guessed at those would fire on every component that takes an
 # icon as a prop — which is most of them — and would get switched off.
 
-GATE="scripts/check_icon_names.py"
+GATE="scripts/check_xml_rules.py --rule icon-names"
 
 setup() {
     load helpers
@@ -40,7 +40,7 @@ write_xml() {
 }
 
 run_gate() {
-    run python3 "$GATE" --root "$FIXTURE" --summary
+    run python3 $GATE --root "$FIXTURE"
 }
 
 # ------------------------------------------------ the shapes that ship broken

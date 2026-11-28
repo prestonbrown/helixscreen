@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_overlay_width.py — the overlay width gate.
+# Meta-tests for the overlay-width rule of scripts/check_xml_rules.py.
 #
 # The gate exists because the two overlay widths encode destination-vs-transient
 # layer, and which one an overlay gets depends on how the user reached it. The
@@ -18,7 +18,7 @@
 
 load helpers
 
-GATE="scripts/check_overlay_width.py"
+GATE="scripts/check_xml_rules.py --rule overlay-width"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -30,7 +30,7 @@ setup() {
 run_gate() {
     local name="$1" body="$2"
     printf '%s\n' "$body" > "$FIXTURE_DIR/$name.xml"
-    run python3 "$GATE" "$FIXTURE_DIR/$name.xml"
+    run python3 $GATE "$FIXTURE_DIR/$name.xml"
 }
 
 # ---------------------------------------------------------------- must catch
@@ -114,7 +114,7 @@ run_gate() {
 # violation and then revert the working file to something clean, and a gate
 # that reads the working tree reports nothing while the bad blob commits.
 
-GATE_ABS="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/check_overlay_width.py"
+GATE_ABS="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/check_xml_rules.py"
 
 setup_tmp_repo() {
     TMP_REPO="$(mktemp -d "${BATS_TEST_TMPDIR:-${BATS_TMPDIR:-/tmp}}/overlay-width-XXXXXX")"
@@ -135,7 +135,7 @@ setup_tmp_repo() {
     git add ui_xml/base.xml
     printf '<component>\n  <view name="x" extends="overlay_panel" title="X"/>\n</component>\n' \
         > ui_xml/base.xml
-    run python3 "$GATE_ABS" --staged-only
+    run python3 "$GATE_ABS" --rule overlay-width --staged-only
     [ "$status" -eq 1 ]
     [[ "$output" == *"overlay_width_destination"* ]]
 }
@@ -150,7 +150,7 @@ setup_tmp_repo() {
     git add ui_xml/base.xml
     printf '<component>\n  <view name="x" extends="overlay_panel" width="#overlay_width_destination" title="X"/>\n</component>\n' \
         > ui_xml/base.xml
-    run python3 "$GATE_ABS" --staged-only
+    run python3 "$GATE_ABS" --rule overlay-width --staged-only
     [ "$status" -eq 0 ]
 }
 
@@ -162,7 +162,7 @@ setup_tmp_repo() {
     printf '%s\n' "$bad" > "$root/ui_xml/own_overlay.xml"
     mkdir -p "$root/ui_xml/.worktrees/other"
     printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/peer_overlay.xml"
-    run bash -c 'cd "$1" && python3 "$2"' _ "$root" "$GATE_ABS"
+    run bash -c 'cd "$1" && python3 "$2" --rule overlay-width' _ "$root" "$GATE_ABS"
     [ "$status" -eq 1 ]
     contains "ui_xml/own_overlay.xml" "$output"
     lacks "peer_overlay.xml" "$output"

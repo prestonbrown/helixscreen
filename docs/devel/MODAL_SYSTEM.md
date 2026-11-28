@@ -604,8 +604,8 @@ lists the measured chrome per breakpoint).
 - Prefer moving content INSIDE the scroll container over pinning it - then
   `#dialog_content_max` is correct by construction.
 - Never raise a card above 85% to fit extra chrome (#1277). The
-  chrome-budget lint gate (`scripts/check_modal_chrome_budget.py`) flags both
-  the raised cap and an unbudgeted block below a scroll area. It counts the container a
+  chrome-budget lint rule (`modal-chrome-budget` in `scripts/check_xml_rules.py`) flags
+  both the raised cap and an unbudgeted block below a scroll area. It counts the container a
   component's `footer` slot targets (`dialog_footer`) as the button row, so a frame's footer
   passes, while a block placed between the body and the footer is still flagged.
 - A shape beyond one extra block (action_prompt's diagram + wrapping rows +

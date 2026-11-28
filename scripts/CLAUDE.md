@@ -137,9 +137,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_esp32_stub_coverage.py` | Fail on a virtual or constructor the firmware links that only an excluded file defines; `ESP32_STUB_OK` |
 | `check_overlay_boilerplate.py` | Shrink-only ratchet on overlay boilerplate `OverlayBase` replaces |
 | `check_duplicate_xml_names.py` | Fail on a widget `name=` used twice in one XML file |
-| `check_responsive_token_scope.py` | Fail on a responsive token declared below the top level of `ui_xml/` |
-| `check_shipped_spacing_tokens.py` | Fail on a spacing token declared only in a dev-only panel stripped from release |
-| `check_icon_names.py` | Fail on an XML icon name absent from `include/ui_icon_codepoints.h` |
+| `check_xml_rules.py` | One table of rules over `ui_xml/`, a run reading each file once: `header-actions`, `overlay-width`, `icon-names`, `responsive-token-scope`, `modal-chrome-budget`, `shipped-spacing-tokens`. Runs as `qc_xml_rules` on every commit. Meta-tests: `tests/shell/test_xml_rules_gate.bats` and one file per rule (`test_<rule>_gate.bats`) |
 | `check_raw_this_queue_update.py` | Ratchet on `queue_update([this, ...])` in `src/` |
 | `check_head_labels.py` | Fail on a head named by a G-code tool number or mounted by a raw `T<n>` in `src/ui` and `src/printer`; `HEAD_LABEL_OK`. Gated as `qc_head_labels` |
 | `check_hardcoded_pixels.py` | Ratchet on raw pixel literals where a design token belongs; over the baseline warns |
@@ -152,7 +150,6 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_installer_step_reachability.py` | Fail on an installer function with no production call site |
 | `check_printer_images.py` | Fail on a printer image the database names but the disk lacks |
 | `check_pytest_asyncio_deps.py` | Fail on async pytest tests that would be skipped or fail without pytest-asyncio |
-| `check_modal_chrome_budget.py` | Fail if a modal's chrome does not match the content cap it budgets against |
 | `check_source_rules.py` | One table of C++ shape rules the compiler accepts and no unit test reaches. `section-returns`, `init-list-ternary` and `getenv-setenv` run as `lint_<name>` functions of `code_lint.sh`; `xml-create-registered` as `qc_xml_create_registered`; `lvgl-subject-api` as `qc_lvgl_subject_api`, on the staged blobs at commit (`--staged-only`) |
 | `check_duplicate_test_names.py` | Fail on two Catch2 TEST_CASEs sharing a name under `tests/`; an `#if`/`#else` pair is one test. Run as `lint_test_case_names_unique` (`qc_test_lint`) |
 | `check_cached_widget_pointers.py` | Ratchet on raw `lv_obj_t*` data members |
@@ -164,7 +161,6 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_workflow_submodules.py` | Fail on a workflow running the shell suite without submodules and patches |
 | `check_vendor_branches.py` | Ratchet: generic code must not branch on a vendor |
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
-| `check_header_actions.py` | Fail on anything but `header_action` in a header's actions slot, a header_action given a size or color, or one with no `callback=` or `event_cb`; warns past 3 actions or 1 primary, and on both a callback and an event_cb |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
 | `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers |
 | `check_layering.py` | The layer map; `qc_layering` fails a cleared include pair's return |
