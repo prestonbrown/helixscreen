@@ -122,8 +122,20 @@ none_found() {
 # not yet staged, so a lint fires on a fresh source file before it is committed.
 # helix-xml needs its own ls-files: it is a submodule, and in a worktree it is a
 # symlink, so neither the parent's index nor `find` reaches it the same way.
+# The paths under @p dirs that exist: the tracked ones and the new ones, less
+# the ones a pending commit deletes. `git commit -- <paths>` records a
+# deletion when it lands, so until then ls-files still names a file nothing
+# can read.
+tracked() {
+    git ls-files --cached --others --exclude-standard "$@" |
+        while IFS= read -r path; do
+            [ -e "$path" ] || continue
+            printf '%s\n' "$path"
+        done
+}
+
 rtti_lint_files() {
-    git ls-files --cached --others --exclude-standard src include firmware |
+    tracked src include firmware |
         grep -E '\.(cpp|h)$'
     git -C lib/helix-xml ls-files --cached --others --exclude-standard |
         grep -E '\.(cpp|h)$' | sed 's@^@lib/helix-xml/@'
@@ -516,7 +528,7 @@ lint_bare_fmt_include() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(bare_fmt_include_pattern)" FMT_INCLUDE_OK \
-        $(git ls-files --cached --others --exclude-standard src include tests firmware | grep -E '\.(cpp|h)$'))
+        $(tracked src include tests firmware | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "bare <fmt/...> include (not on every host's include path):"
     printf '%s\n' "$offenders"
@@ -535,7 +547,7 @@ lint_json_hpp_in_headers() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(json_hpp_include_pattern)" JSON_HPP_OK \
-        $(git ls-files --cached --others --exclude-standard src include | grep -E '\.h$'))
+        $(tracked src include | grep -E '\.h$'))
     [ -z "$offenders" ] && return 0
     echo "hv/json.hpp in a header (every includer then parses the whole library):"
     printf '%s\n' "$offenders"
@@ -555,7 +567,7 @@ lint_raw_threads() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(raw_thread_pattern)" THREAD_OK \
-        $(git ls-files --cached --others --exclude-standard src include |
+        $(tracked src include |
             grep -E '\.(cpp|h)$' | grep -v '^include/helix_thread\.h$'))
     [ -z "$offenders" ] && return 0
     echo "Raw thread spawn (a stack overflow on it leaves no crash file):"
@@ -582,7 +594,7 @@ lint_wifi_manager_owner() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(wifi_manager_owner_pattern)" WIFI_MANAGER_OWNER_OK \
-        $(git ls-files --cached --others --exclude-standard src include firmware | grep -E '\.(cpp|h)$'))
+        $(tracked src include firmware | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "WiFiManager built outside get_wifi_manager() (its destructor can wait forever on a wedged daemon):"
     printf '%s\n' "$offenders"
@@ -672,7 +684,7 @@ lint_queue_update_tagged() {
     # shellcheck disable=SC2046
     offenders=$(CODE_LINT_JOIN="$(queue_split_pattern)" code_offenders \
         "$(queue_untagged_pattern)" QUEUE_TAG_OK \
-        $(git ls-files --cached --others --exclude-standard src firmware | grep -E '\.(cpp|h)$'))
+        $(tracked src firmware | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "Untagged queue_update() (a leak would report <untagged>):"
     printf '%s\n' "$offenders"
@@ -691,7 +703,7 @@ lint_old_observer_names() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(old_observer_pattern)" "" $(rtti_lint_files) \
-        $(git ls-files --cached --others --exclude-standard tests/unit | grep -E '\.(cpp|h)$'))
+        $(tracked tests/unit | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "Retired observer factory name:"
     printf '%s\n' "$offenders"
@@ -1261,7 +1273,7 @@ lint_init_list_ternary() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(python3 "$CODE_LINT_DIR/check_init_list_ternary.py" \
-        $(git ls-files --cached --others --exclude-standard src include firmware | grep -E '\.(cpp|h|hpp)$'))
+        $(tracked src include firmware | grep -E '\.(cpp|h|hpp)$'))
     [ -z "$offenders" ] && return 0
     echo "initializer_list stored from a ternary (it dangles):"
     printf '%s\n' "$offenders"
@@ -1316,7 +1328,7 @@ lint_remove_event_sweep() {
     local offenders
     # shellcheck disable=SC2046
     offenders=$(code_offenders "$(remove_event_sweep_pattern)" REMOVE_EVENT_OK \
-        $(git ls-files --cached --others --exclude-standard src include | grep -E '\.(cpp|h)$'))
+        $(tracked src include | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "lv_obj_remove_event by index (it also removes the widget's observer cleanup hooks):"
     printf '%s\n' "$offenders"
@@ -1727,7 +1739,7 @@ lint_section_returns() {
     local offenders
     # shellcheck disable=SC2046  # paths have no spaces
     offenders=$(python3 "$CODE_LINT_DIR/check_section_returns.py" \
-        $(git ls-files --cached --others --exclude-standard tests | grep -E '\.(cpp|h)$'))
+        $(tracked tests | grep -E '\.(cpp|h)$'))
     [ -z "$offenders" ] && return 0
     echo "return inside a SECTION hides its later sibling SECTIONs (they never run):"
     printf '%s\n' "$offenders"

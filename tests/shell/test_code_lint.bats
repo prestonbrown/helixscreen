@@ -2109,6 +2109,41 @@ EOF
     lacks "FMT_INCLUDE_OK" "$output"
 }
 
+@test "the lints skip a tracked file a pending commit deletes and still read the rest" {
+    fixture_root
+    git init -q .
+    git config user.email t@example.com
+    git config user.name t
+    printf '#include <fmt/format.h>\n' | put src/live.cpp
+    printf '#include <fmt/format.h>\n' | put src/doomed.cpp
+    git add src
+    git commit -qm "two offenders"
+    # A path-limited commit records the deletion when it lands, not before.
+    rm src/doomed.cpp
+
+    run lint_bare_fmt_include
+    [ "$status" -eq 1 ]
+    contains "src/live.cpp:1" "$output"
+    lacks "doomed" "$output"
+    lacks "is gone" "$output"
+}
+
+@test "a tree whose only offender is a tracked file a pending commit deletes lints clean" {
+    fixture_root
+    git init -q .
+    git config user.email t@example.com
+    git config user.name t
+    printf 'int live = 0;\n' | put src/live.cpp
+    printf '#include <fmt/format.h>\n' | put src/doomed.cpp
+    git add src
+    git commit -qm "one offender"
+    rm src/doomed.cpp
+
+    run lint_bare_fmt_include
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
 @test "the json.hpp header lint catches the full library and stays quiet on json_fwd.h and opt-outs" {
     local f="$BATS_TEST_TMPDIR/json.h"
     cat > "$f" <<'EOF'
