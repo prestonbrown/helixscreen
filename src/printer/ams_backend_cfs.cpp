@@ -48,6 +48,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "hv/json.hpp"
 
@@ -4646,15 +4647,55 @@ bool AmsBackendCfs::last_chute_saved_position(double& x_mm, double& y_mm) const 
 }
 
 bool AmsBackendCfs::parse_chute_save_line(const std::string& line, double& x_mm, double& y_mm) {
-    if (sscanf(line.c_str(), "cmd_save_extrude_pos x=%lf y=%lf", &x_mm, &y_mm) == 2) {
-        return true;
+    namespace tio = helix::text_io;
+    // Two firmware spellings; each yields both coordinates or neither.
+    const auto read_pair =
+        [&line](std::string_view head,
+                std::string_view mid) -> std::optional<std::pair<double, double>> {
+        std::string_view rest = line;
+        if (!tio::consume_literal(rest, head)) {
+            return std::nullopt;
+        }
+        const auto x = tio::scan_number<double>(rest);
+        if (!x || !tio::consume_literal(rest, mid)) {
+            return std::nullopt;
+        }
+        const auto y = tio::scan_number<double>(rest);
+        if (!y) {
+            return std::nullopt;
+        }
+        return std::make_pair(*x, *y);
+    };
+    auto pair = read_pair("cmd_save_extrude_pos x=", " y=");
+    if (!pair) {
+        pair = read_pair("SAVE_BOX_CFG ok: extrude_pos_x=", ",extrude_pos_y=");
     }
-    return sscanf(line.c_str(), "SAVE_BOX_CFG ok: extrude_pos_x=%lf,extrude_pos_y=%lf", &x_mm,
-                  &y_mm) == 2;
+    if (!pair) {
+        return false;
+    }
+    x_mm = pair->first;
+    y_mm = pair->second;
+    return true;
 }
 
 bool AmsBackendCfs::parse_cut_found_line(const std::string& line, char& axis, double& value_mm) {
-    return sscanf(line.c_str(), "Found cut position %c: %lf", &axis, &value_mm) == 2;
+    namespace tio = helix::text_io;
+    std::string_view rest = line;
+    if (!tio::consume_literal(rest, "Found cut position ") || rest.empty()) {
+        return false;
+    }
+    const char found_axis = rest.front();
+    rest.remove_prefix(1);
+    if (!tio::consume_literal(rest, ": ")) {
+        return false;
+    }
+    const auto value = tio::scan_number<double>(rest);
+    if (!value) {
+        return false;
+    }
+    axis = found_axis;
+    value_mm = *value;
+    return true;
 }
 
 AmsError AmsBackendCfs::exit_chute_calibration() {

@@ -576,3 +576,27 @@ TEST_CASE("Layer height reads as unavailable when unknown", "[ui][metadata][qidi
     CHECK(format_layer_height(0.2) == "0.20 mm");
     CHECK(format_layer_height(0.0) == helix::format::UNAVAILABLE);
 }
+
+TEST_CASE("parse_http_date keeps scanf's field widths and spacing", "[format_utils][http_date]") {
+    std::time_t t = 42;
+    // Single-digit day and extra blanks between fields still read.
+    REQUIRE(helix::format::parse_http_date("Sun,  6 Nov 1994  08:49:37   GMT", t));
+    CHECK(t == 784111777);
+    // Day-name letters are free text; any run of letters is accepted.
+    REQUIRE(helix::format::parse_http_date("Xyzzy, 06 Nov 1994 08:49:37 GMT", t));
+    CHECK(t == 784111777);
+
+    t = 42;
+    CHECK_FALSE(helix::format::parse_http_date(", 06 Nov 1994 08:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun 06 Nov 1994 08:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1994 08:49 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1994 08:49:37", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1994 08:49:37 GMT ", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, aa Nov 1994 08:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1969 08:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 19944 08:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1994 08:60:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 06 Nov 1994 -8:49:37 GMT", t));
+    CHECK_FALSE(helix::format::parse_http_date("Sun, 99999999999 Nov 1994 08:49:37 GMT", t));
+    CHECK(t == 42);
+}

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "core/text_io.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -12,6 +14,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // ============================================================================
@@ -171,17 +174,21 @@ struct ScrewTiltResult {
         if (is_reference) {
             return 0;
         }
-        char direction[8] = {};
-        int turns = 0;
-        int minutes = 0;
-        if (std::sscanf(adjustment.c_str(), "%7s %d:%d", direction, &turns, &minutes) != 3) {
+        std::string_view rest = adjustment;
+        const auto direction = helix::text_io::scan_word(rest, 7);
+        const auto turns = helix::text_io::scan_number<int>(rest);
+        if (!direction || !turns || !helix::text_io::consume_literal(rest, ":")) {
             return std::nullopt;
         }
-        int magnitude = turns * 60 + minutes;
-        if (std::strcmp(direction, "CW") == 0) {
+        const auto minutes = helix::text_io::scan_number<int>(rest);
+        if (!minutes) {
+            return std::nullopt;
+        }
+        int magnitude = *turns * 60 + *minutes;
+        if (*direction == "CW") {
             return magnitude;
         }
-        if (std::strcmp(direction, "CCW") == 0) {
+        if (*direction == "CCW") {
             return -magnitude;
         }
         return std::nullopt;

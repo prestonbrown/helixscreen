@@ -378,7 +378,119 @@ namespace detail {
 /// standard library has no floating-point from_chars, and on the ESP32, where
 /// libstdc++'s from_chars links about 20KB of tables the image has no room for.
 std::optional<double> parse_double_strtod(std::string_view s);
+
+/// The longest floating-point prefix of @p text, read through the locale-mapped
+/// strtod (strtof when @p single). consumed is 0 when there is no number.
+struct FloatScan {
+    double value;
+    size_t consumed;
+    bool out_of_range;
+};
+FloatScan scan_float(std::string_view text, bool single);
 } // namespace detail
+
+// Scanning helpers: read several fields off one line, scanf-style.
+
+/// Skips ASCII whitespace at the front of @p s, as a scanf conversion does.
+inline void skip_ws(std::string_view& s) {
+    size_t n = 0;
+    while (n < s.size() && (s[n] == ' ' || (s[n] >= '\t' && s[n] <= '\r'))) {
+        ++n;
+    }
+    s.remove_prefix(n);
+}
+
+/// scanf's literal matching: a space in @p lit matches any run of whitespace
+/// (including none), every other character must match exactly. Advances @p s
+/// past the match and returns true; leaves @p s untouched on a mismatch.
+inline bool consume_literal(std::string_view& s, std::string_view lit) {
+    std::string_view rest = s;
+    for (const char c : lit) {
+        if (c == ' ') {
+            skip_ws(rest);
+        } else if (!rest.empty() && rest.front() == c) {
+            rest.remove_prefix(1);
+        } else {
+            return false;
+        }
+    }
+    s = rest;
+    return true;
+}
+
+/// scanf's "%<max_width>s": skips whitespace, then takes up to @p max_width
+/// non-whitespace characters and advances @p s past them. nullopt (@p s
+/// unchanged) when only whitespace or nothing is left.
+inline std::optional<std::string_view> scan_word(std::string_view& s, size_t max_width) {
+    std::string_view rest = s;
+    skip_ws(rest);
+    size_t n = 0;
+    while (n < rest.size() && n < max_width && rest[n] != ' ' &&
+           !(rest[n] >= '\t' && rest[n] <= '\r')) {
+        ++n;
+    }
+    if (n == 0) {
+        return std::nullopt;
+    }
+    const std::string_view word = rest.substr(0, n);
+    rest.remove_prefix(n);
+    s = rest;
+    return word;
+}
+
+/// parse_leading that also advances @p s past the number, for reading several
+/// values off one line (scanf's "%d:%d" shape). Leading whitespace is skipped
+/// and counted as consumed. @p max_width bounds the characters the number may
+/// span after the whitespace, sign included, like scanf's "%2d". @p s is
+/// unchanged on failure.
+template <typename T>
+std::optional<T> scan_number(std::string_view& s, int base = 10, size_t max_width = SIZE_MAX) {
+    static_assert(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>);
+    std::string_view rest = s;
+    skip_ws(rest);
+    const std::string_view field = rest.substr(0, max_width);
+    size_t consumed = 0;
+    std::optional<T> out;
+    if constexpr (std::is_floating_point_v<T>) {
+        static_assert(!std::is_same_v<T, long double>);
+        const auto scan = detail::scan_float(field, std::is_same_v<T, float>);
+        consumed = scan.consumed;
+        if (scan.consumed != 0 && !scan.out_of_range) {
+            out = static_cast<T>(scan.value);
+        }
+    } else if constexpr (std::is_signed_v<T>) {
+        const std::string buf(field); // strto* reads up to a terminator
+        const char* begin = buf.c_str();
+        char* end = nullptr;
+        errno = 0;
+        const long long v = std::strtoll(begin, &end, base);
+        consumed = static_cast<size_t>(end - begin);
+        if (end != begin && errno != ERANGE && v >= std::numeric_limits<T>::min() &&
+            v <= std::numeric_limits<T>::max()) {
+            out = static_cast<T>(v);
+        }
+    } else {
+        // strtoul/strtoull negate a leading '-' in the unsigned type, so "-1" is
+        // the maximum rather than an error, as std::stoul and std::stoull return.
+        using Wide = std::conditional_t<(sizeof(T) <= sizeof(unsigned long)), unsigned long,
+                                        unsigned long long>;
+        const std::string buf(field);
+        const char* begin = buf.c_str();
+        char* end = nullptr;
+        errno = 0;
+        const Wide v = std::is_same_v<Wide, unsigned long> ? std::strtoul(begin, &end, base)
+                                                           : std::strtoull(begin, &end, base);
+        consumed = static_cast<size_t>(end - begin);
+        if (end != begin && errno != ERANGE && v <= std::numeric_limits<T>::max()) {
+            out = static_cast<T>(v);
+        }
+    }
+    if (out) {
+        rest.remove_prefix(consumed);
+        s = rest;
+    }
+    return out;
+}
 
 // Numbers by std::sto* rules: leading whitespace skipped, the number read up to
 // the first character that cannot continue it, the rest ignored ("12abc" is 12,
@@ -388,37 +500,7 @@ std::optional<double> parse_double_strtod(std::string_view s);
 // caller has no reason to accept trailing text.
 
 template <typename T> std::optional<T> parse_leading(std::string_view s, int base = 10) {
-    static_assert(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>);
-    const std::string buf(s); // strto* reads up to a terminator
-    const char* begin = buf.c_str();
-    char* end = nullptr;
-    errno = 0;
-    if constexpr (std::is_floating_point_v<T>) {
-        static_assert(!std::is_same_v<T, long double>);
-        const T v = std::is_same_v<T, float> ? std::strtof(begin, &end) : std::strtod(begin, &end);
-        if (end == begin || errno == ERANGE) {
-            return std::nullopt;
-        }
-        return v;
-    } else if constexpr (std::is_signed_v<T>) {
-        const long long v = std::strtoll(begin, &end, base);
-        if (end == begin || errno == ERANGE || v < std::numeric_limits<T>::min() ||
-            v > std::numeric_limits<T>::max()) {
-            return std::nullopt;
-        }
-        return static_cast<T>(v);
-    } else {
-        // strtoul/strtoull negate a leading '-' in the unsigned type, so "-1" is
-        // the maximum rather than an error, as std::stoul and std::stoull return.
-        using Wide = std::conditional_t<(sizeof(T) <= sizeof(unsigned long)), unsigned long,
-                                        unsigned long long>;
-        const Wide v = std::is_same_v<Wide, unsigned long> ? std::strtoul(begin, &end, base)
-                                                           : std::strtoull(begin, &end, base);
-        if (end == begin || errno == ERANGE || v > std::numeric_limits<T>::max()) {
-            return std::nullopt;
-        }
-        return static_cast<T>(v);
-    }
+    return scan_number<T>(s, base);
 }
 
 } // namespace helix::text_io

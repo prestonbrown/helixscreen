@@ -687,3 +687,127 @@ TEST_CASE("utf8_first_codepoint takes the whole lead character", "[text_io]") {
     CHECK(utf8_first_codepoint("\xE6\x9C\x88") == "\xE6\x9C\x88");          // 3 bytes
     CHECK(utf8_first_codepoint("\xF0\x9F\x98\x80x") == "\xF0\x9F\x98\x80"); // 4 bytes
 }
+
+TEST_CASE("scan_number reads one field and advances past it", "[text_io][scan]") {
+    using helix::text_io::scan_number;
+    std::string_view s = "  12:-30 rest";
+    CHECK(scan_number<int>(s) == 12);
+    CHECK(s == ":-30 rest");
+
+    SECTION("a failed scan leaves the view untouched") {
+        std::string_view bad = "  abc";
+        CHECK_FALSE(scan_number<int>(bad).has_value());
+        CHECK(bad == "  abc");
+        std::string_view empty;
+        CHECK_FALSE(scan_number<int>(empty).has_value());
+        std::string_view blank = "   ";
+        CHECK_FALSE(scan_number<int>(blank).has_value());
+    }
+
+    SECTION("negative, plus-signed and floating values") {
+        std::string_view neg = "-30";
+        CHECK(scan_number<int>(neg) == -30);
+        std::string_view plus = "+7,";
+        CHECK(scan_number<int>(plus) == 7);
+        CHECK(plus == ",");
+        std::string_view f = "1.5e1x";
+        CHECK(scan_number<double>(f) == Catch::Approx(15.0));
+        CHECK(f == "x");
+    }
+
+    SECTION("a value outside T is refused") {
+        std::string_view big = "99999999999";
+        CHECK_FALSE(scan_number<int>(big).has_value());
+        CHECK(big == "99999999999");
+        std::string_view huge = "1e999";
+        CHECK_FALSE(scan_number<double>(huge).has_value());
+    }
+
+    SECTION("max_width bounds the field, sign included") {
+        std::string_view s2 = "1234";
+        CHECK(scan_number<int>(s2, 10, 2) == 12);
+        CHECK(s2 == "34");
+        std::string_view signed2 = "-12";
+        CHECK(scan_number<int>(signed2, 10, 2) == -1);
+        CHECK(signed2 == "2");
+        std::string_view ws = "  567";
+        CHECK(scan_number<int>(ws, 10, 2) == 56);
+        CHECK(ws == "7");
+    }
+
+    SECTION("parse_leading is the same read without the advance") {
+        CHECK(helix::text_io::parse_leading<int>(" 12abc") == 12);
+        CHECK_FALSE(helix::text_io::parse_leading<int>("abc").has_value());
+    }
+}
+
+TEST_CASE("consume_literal matches like a scanf format", "[text_io][scan]") {
+    using helix::text_io::consume_literal;
+    std::string_view s = "x=  5";
+    CHECK(consume_literal(s, "x="));
+    CHECK(s == "  5");
+    CHECK(consume_literal(s, " "));
+    CHECK(s == "5");
+
+    std::string_view mismatch = "y=5";
+    CHECK_FALSE(consume_literal(mismatch, "x="));
+    CHECK(mismatch == "y=5");
+    std::string_view partial = "x:";
+    CHECK_FALSE(consume_literal(partial, "x="));
+    CHECK(partial == "x:");
+    std::string_view short_text = "x";
+    CHECK_FALSE(consume_literal(short_text, "x="));
+
+    std::string_view zero_ws = "a,b";
+    CHECK(consume_literal(zero_ws, "a, b")); // a space matches zero blanks too
+    CHECK(zero_ws.empty());
+    std::string_view any_ws = "a,\t b";
+    CHECK(consume_literal(any_ws, "a, b"));
+    CHECK(any_ws.empty());
+}
+
+TEST_CASE("scan_word takes up to max_width non-blank characters", "[text_io][scan]") {
+    using helix::text_io::scan_word;
+    std::string_view s = "  CW01:30";
+    CHECK(scan_word(s, 7) == "CW01:30");
+    CHECK(s.empty());
+
+    std::string_view clipped = "CWCWCWCWX 1";
+    CHECK(scan_word(clipped, 7) == "CWCWCWC");
+    CHECK(clipped == "WX 1");
+
+    std::string_view stops = "CW 01";
+    CHECK(scan_word(stops, 7) == "CW");
+    CHECK(stops == " 01");
+
+    std::string_view none = "   ";
+    CHECK_FALSE(scan_word(none, 3).has_value());
+    CHECK(none == "   ");
+}
+
+TEST_CASE("scan_number reads '.' as the decimal point under a comma locale", "[text_io][scan]") {
+    const char* prev = std::setlocale(LC_NUMERIC, nullptr);
+    const std::string saved = prev ? prev : "C";
+    const char* const kCommaLocales[] = {"de_DE.UTF-8", "de_DE.utf8", "fr_FR.UTF-8",
+                                         "fr_FR.utf8",  "de_DE",      "fr_FR"};
+    bool switched = false;
+    for (const char* name : kCommaLocales) {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+            switched = *std::localeconv()->decimal_point == ',';
+            if (switched) {
+                break;
+            }
+        }
+    }
+    if (!switched) {
+        std::setlocale(LC_NUMERIC, saved.c_str());
+        SKIP("no comma-decimal locale installed");
+    }
+    std::string_view d = "1.5,2.25";
+    CHECK(helix::text_io::scan_number<double>(d) == Catch::Approx(1.5));
+    CHECK(d == ",2.25");
+    std::string_view f = "-0.5x";
+    CHECK(helix::text_io::scan_number<float>(f) == Catch::Approx(-0.5f));
+    CHECK(f == "x");
+    std::setlocale(LC_NUMERIC, saved.c_str());
+}

@@ -1467,19 +1467,26 @@ GCodeThumbnail scan_best_thumbnail(NextLine next_line, std::string_view source) 
         }
         size_t png_begin_pos = line.find("; png begin ");
         if (begin_pos != std::string::npos || png_begin_pos != std::string::npos) {
-            const bool creality = begin_pos == std::string::npos;
+            // The `; png begin <w>*<h> <bytes>` header some slicers write.
+            const bool png_begin_block = begin_pos == std::string::npos;
             const char* dims =
-                line.c_str() + (creality ? png_begin_pos + 12 : begin_pos + begin_len);
-            int w = 0, h = 0, size = 0;
-            if (sscanf(dims, creality ? "%d*%d %d" : "%dx%d %d", &w, &h, &size) >= 2 &&
-                (!creality || (w > 0 && h > 0))) {
+                line.c_str() + (png_begin_block ? png_begin_pos + 12 : begin_pos + begin_len);
+            // "<w>x<h> <bytes>" (or "<w>*<h> <bytes>"): only the dimensions matter.
+            std::string_view dim_text = dims;
+            const auto w_opt = helix::text_io::scan_number<int>(dim_text);
+            const bool has_sep =
+                w_opt && helix::text_io::consume_literal(dim_text, png_begin_block ? "*" : "x");
+            const auto h_opt = has_sep ? helix::text_io::scan_number<int>(dim_text) : std::nullopt;
+            const int w = h_opt ? *w_opt : 0;
+            const int h = h_opt ? *h_opt : 0;
+            if (h_opt && (!png_begin_block || (w > 0 && h > 0))) {
                 width = w;
                 height = h;
                 base64.clear();
                 in_block = true;
                 block_is_jpg = jpg_header;
                 spdlog::debug("[GCode Parser] Found {}thumbnail {}x{} in {}",
-                              creality ? "Creality " : "", w, h, source);
+                              png_begin_block ? "png-begin " : "", w, h, source);
             }
             continue;
         }
@@ -1709,7 +1716,9 @@ bool parse_metadata_line(const std::string& line, GCodeHeaderMetadata& metadata)
         std::string filament_str = line.substr(cura_filament.length());
         // Parse "1.20047m" format - meters to mm
         double meters = 0;
-        if (sscanf(filament_str.c_str(), "%lfm", &meters) == 1) {
+        std::string_view meters_text = filament_str;
+        if (const auto parsed = helix::text_io::scan_number<double>(meters_text)) {
+            meters = *parsed;
             metadata.filament_used_mm = meters * 1000.0; // Convert to mm
             // Estimate grams as PLA (1.24 g/cm³) at the default diameter: the
             // file names neither, and the parser has no printer to ask.

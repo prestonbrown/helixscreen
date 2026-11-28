@@ -709,3 +709,28 @@ TEST_CASE("Re-centring stays quiet when it would not save real work",
         REQUIRE_FALSE(suggest_screw_recentering(screws, report).available);
     }
 }
+
+TEST_CASE("signed_adjustment_minutes follows scanf's \"%7s %d:%d\" shape",
+          "[calibration][screws_tilt]") {
+    ScrewTiltResult r;
+    r.is_reference = false;
+    const auto minutes = [&r](const char* text) {
+        r.adjustment = text;
+        return r.signed_adjustment_minutes();
+    };
+
+    CHECK(minutes("CW 01:30") == 90);
+    CHECK(minutes("CCW 00:15") == -15);
+    CHECK(minutes("  CW   1: 5 trailing") == 65);
+    CHECK(minutes("CW 00:-5") == -5);
+
+    CHECK_FALSE(minutes("").has_value());
+    CHECK_FALSE(minutes("CW").has_value());
+    CHECK_FALSE(minutes("CW 01").has_value());
+    CHECK_FALSE(minutes("CW 01:").has_value());
+    CHECK_FALSE(minutes("CW 01-30").has_value());
+    CHECK_FALSE(minutes("cw 01:30").has_value());
+    CHECK_FALSE(minutes("UP 01:30").has_value());
+    CHECK_FALSE(minutes("CW01:30").has_value());
+    CHECK_FALSE(minutes("CW 99999999999:00").has_value());
+}

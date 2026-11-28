@@ -3,6 +3,7 @@
 
 #include "format_utils.h"
 
+#include "core/text_io.h"
 #include "translation_loader.h"
 
 #include <cstdint>
@@ -228,16 +229,41 @@ bool parse_http_date(const char* value, std::time_t& epoch_s) {
     if (value == nullptr) {
         return false;
     }
-    char mon[4] = {};
-    char zone[4] = {};
-    int day = 0, year = 0, hour = 0, minute = 0, second = 0, end = 0;
-    if (std::sscanf(value, "%*[A-Za-z], %2d %3s %4d %2d:%2d:%2d %3s%n", &day, mon, &year, &hour,
-                    &minute, &second, zone, &end) != 7 ||
-        value[end] != '\0' || std::strcmp(zone, "GMT") != 0) {
+    namespace tio = helix::text_io;
+    std::string_view rest = value;
+    // "<Day>, DD Mon YYYY HH:MM:SS GMT", nothing after the zone.
+    size_t letters = 0;
+    while (letters < rest.size() && ((rest[letters] >= 'A' && rest[letters] <= 'Z') ||
+                                     (rest[letters] >= 'a' && rest[letters] <= 'z'))) {
+        ++letters;
+    }
+    if (letters == 0) {
         return false;
     }
+    rest.remove_prefix(letters);
+    if (!tio::consume_literal(rest, ", ")) {
+        return false;
+    }
+    const auto day_v = tio::scan_number<int>(rest, 10, 2);
+    const auto mon_v = tio::scan_word(rest, 3);
+    const auto year_v = tio::scan_number<int>(rest, 10, 4);
+    const auto hour_v = tio::scan_number<int>(rest, 10, 2);
+    if (!day_v || !mon_v || !year_v || !hour_v || !tio::consume_literal(rest, ":")) {
+        return false;
+    }
+    const auto minute_v = tio::scan_number<int>(rest, 10, 2);
+    if (!minute_v || !tio::consume_literal(rest, ":")) {
+        return false;
+    }
+    const auto second_v = tio::scan_number<int>(rest, 10, 2);
+    const auto zone_v = tio::scan_word(rest, 3);
+    if (!second_v || !zone_v || !rest.empty() || *zone_v != "GMT") {
+        return false;
+    }
+    const int day = *day_v, year = *year_v, hour = *hour_v, minute = *minute_v, second = *second_v;
+    const std::string_view mon = *mon_v;
     int month = 0;
-    while (month < 12 && std::strcmp(mon, kMonths[month]) != 0) {
+    while (month < 12 && mon != kMonths[month]) {
         ++month;
     }
     if (month == 12 || year < 1970 || hour < 0 || hour > 23 || minute < 0 || minute > 59 ||

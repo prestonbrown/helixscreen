@@ -2099,3 +2099,41 @@ TEST_CASE("GCodeParser - reset() forgets the wipe tower's interned index",
     CHECK(file.get_object_name(segs.front().object_name_index) == "part1");
     CHECK(file.get_object_name(segs.back().object_name_index) == "__WIPE_TOWER__");
 }
+
+TEST_CASE("thumbnail header dimensions read like scanf's \"%dx%d\"", "[gcode][thumbnail]") {
+    const std::string png_base64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAA"
+        "BJRU5ErkJggg==";
+    const auto thumb_for = [&](const std::string& header) {
+        return get_best_thumbnail_from_content(header + "\n; " + png_base64 +
+                                               "\n; thumbnail end\n");
+    };
+
+    CHECK(thumb_for("; thumbnail begin 48x32 100").width == 48);
+    CHECK(thumb_for("; thumbnail begin 48x32 100").height == 32);
+    // The byte count after the size is optional.
+    CHECK(thumb_for("; thumbnail begin 48x32").width == 48);
+    // A missing, malformed or wrongly separated size is no thumbnail.
+    CHECK(thumb_for("; thumbnail begin 48 100").png_data.empty());
+    CHECK(thumb_for("; thumbnail begin axb 100").png_data.empty());
+    CHECK(thumb_for("; thumbnail begin 48*32 100").png_data.empty());
+    CHECK(thumb_for("; thumbnail begin x32 100").png_data.empty());
+
+    // The "png begin" header separates the size with '*' and needs both
+    // sides positive.
+    const auto creality = [&](const std::string& dims) {
+        return get_best_thumbnail_from_content("; png begin " + dims + "\n; " + png_base64 +
+                                               "\n; png end\n");
+    };
+    CHECK(creality("48*32 100").width == 48);
+    CHECK(creality("48*32 100").height == 32);
+    CHECK(creality("48x32 100").png_data.empty());
+    CHECK(creality("0*32 100").png_data.empty());
+    CHECK(creality("48*-3 100").png_data.empty());
+}
+
+TEST_CASE("Cura filament length reads the leading number only", "[gcode][metadata]") {
+    CHECK(header_of(";Filament used: 2.5m\nG1 X1\n").filament_used_mm == Approx(2500.0));
+    CHECK(header_of(";Filament used: 2.5\nG1 X1\n").filament_used_mm == Approx(2500.0));
+    CHECK(header_of(";Filament used: m\nG1 X1\n").filament_used_mm == Approx(0.0));
+}
