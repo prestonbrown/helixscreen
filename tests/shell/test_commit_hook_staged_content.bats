@@ -256,13 +256,13 @@ assert_judged_on_staged_file() {
     contains "Theme artefacts match 1 tokens" "$output"
 }
 
-# Puts a git on the PATH that holds the index lock for a second around every
-# write, so two writes in one commit overlap for certain.
+# Gives the hook a git that holds the index lock for a second around every
+# write (fixtures/staged-content/slow-git.sh), exported as a shell function so
+# that it reaches the hook `git commit` runs too. Two writes in one commit
+# then overlap for certain.
 slow_git() {
-    mkdir -p "$R/bin"
-    sed "s|REAL_GIT|$(command -v git)|g" "$FIXTURES/slow-git.sh" > "$R/bin/git"
-    chmod +x "$R/bin/git"
-    export PATH="$R/bin:$PATH"
+    . "$FIXTURES/slow-git.sh"
+    export -f git
 }
 
 @test "one commit that wakes both artifact gates stages both" {
@@ -279,6 +279,35 @@ slow_git() {
     contains "Regenerated and staged $TABLE" "$output"
     [ "$(staged "$SCHEMA")" = "$(printf '{"tokens": "1"}\n')" ] || fail "the index holds: $(staged "$SCHEMA")"
     contains "space_probe" "$(staged "$TABLE")"
+}
+
+# A pre-commit hook for the scratch repo with the line the real one ends on.
+commit_hook() {
+    mkdir -p "$R/.githooks"
+    cat > "$R/.githooks/pre-commit" <<'HOOK'
+#!/bin/bash
+set -e
+cd "$(git rev-parse --show-toplevel)"
+exec ./scripts/quality-checks.sh --staged-only --auto-fix
+HOOK
+    chmod +x "$R/.githooks/pre-commit"
+    git config core.hooksPath .githooks
+}
+
+@test "git commit -- <paths> hands the hook a temporary index, and both writes land in the commit" {
+    # That index is .git/next-index-<pid>.lock, so its lock ends in .lock.lock:
+    # git's refusal names it, and the retry has to read that name too.
+    slow_git
+    commit_hook
+    fixture a-token.xml > "$XML_TOKENS"
+
+    run git commit -qm "a token" -- "$XML_TOKENS"
+
+    [ "$status" -eq 0 ] || fail "$output"
+    [ "$(git show "HEAD:$SCHEMA")" = "$(printf '{"tokens": "1"}\n')" ] || fail "the commit holds: $(git show "HEAD:$SCHEMA")"
+    contains "space_probe" "$(git show "HEAD:$TABLE")"
+    contains "$SCHEMA" "$(git show --stat --format= HEAD)"
+    contains "$TABLE" "$(git show --stat --format= HEAD)"
 }
 
 # Holds git's index lock across a write made through qc_index_write, in the

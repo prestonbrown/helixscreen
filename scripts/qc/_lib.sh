@@ -107,12 +107,14 @@ qc_export_index_tree() {
   git ls-files -z -- "$@" | xargs -0 -r git checkout-index --prefix="$dir/" -- >/dev/null 2>&1 || true
 }
 
-# The one way a gate writes the index. Git refuses its own index.lock instead of
+# The one way a gate writes the index. Git refuses its index lock instead of
 # waiting for it, and gates fan out in parallel: more than one of them repairs
 # what is staged, and a reader such as `git diff` takes the same lock for a
 # moment to refresh stat data. A write that meets the lock is tried again until
 # it goes through, for up to about thirty seconds; then git's own message is
-# the verdict.
+# the verdict. The refusal is read by its wording, because the lock is not
+# always index.lock: `git commit -- <paths>` hands its hook a temporary index,
+# next-index-<pid>.lock, whose lock ends in .lock.lock.
 qc_index_write() {
   local attempt=0 rc err
   err="$(mktemp "${TMPDIR:-/tmp}/helix_index_write.XXXXXX")" || return 1
@@ -120,7 +122,8 @@ qc_index_write() {
     attempt=$((attempt + 1))
     "$@" 2>"$err"
     rc=$?
-    if [ "$rc" -eq 0 ] || ! grep -q 'index\.lock' "$err" || [ "$attempt" -ge 300 ]; then break; fi
+    if [ "$rc" -eq 0 ] || [ "$attempt" -ge 300 ]; then break; fi
+    grep -qE "Unable to create '.*\.lock': File exists" "$err" || break
     sleep 0.1
   done
   cat "$err" >&2
