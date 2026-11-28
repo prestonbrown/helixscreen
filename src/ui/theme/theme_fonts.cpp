@@ -71,7 +71,6 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
 
     int registered = 0;
     for (const auto& [base_name, small_val] : small_tokens) {
-        // Verify _small/_medium/_large triplet exists (required)
         auto medium_it = medium_tokens.find(base_name);
         auto large_it = large_tokens.find(base_name);
 
@@ -97,7 +96,6 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
                     }
                 }
             } else if (strcmp(size_suffix, "_tiny") == 0) {
-                // Use _tiny if available, otherwise fall back to _small
                 auto tiny_it = tiny_tokens.find(base_name);
                 if (tiny_it != tiny_tokens.end()) {
                     value = tiny_it->second.c_str();
@@ -125,7 +123,6 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
                     selected_suffix = "_large";
                 }
             } else {
-                // _xxlarge: use xxlarge if available, fall back to _xlarge, then _large
                 auto xxlarge_it = xxlarge_tokens.find(base_name);
                 if (xxlarge_it != xxlarge_tokens.end()) {
                     value = xxlarge_it->second.c_str();
@@ -311,7 +308,6 @@ const lv_font_t* theme_manager_get_font(const char* token) {
         return lv_font_get_default();
     }
 
-    // Get the font name from the registered constant (e.g., "font_small" -> "noto_sans_16")
     const char* font_name = lv_xml_get_const_silent(nullptr, token);
     if (!font_name) {
         if (runtime().current_theme) {
@@ -322,7 +318,6 @@ const lv_font_t* theme_manager_get_font(const char* token) {
         return lv_font_get_default();
     }
 
-    // Get the actual font pointer
     const lv_font_t* font = lv_xml_get_font(nullptr, font_name);
     if (!font) {
         spdlog::warn("[Theme] Font '{}' (from token '{}') not registered - falling back to default",
@@ -351,7 +346,6 @@ const char* theme_manager_size_to_font_token(const char* size, const char* defau
         return "font_xl";
     }
 
-    // Unknown size - warn and return default
     spdlog::warn("[Theme] Unknown size '{}', using default '{}'", effective_size, default_size);
     return theme_manager_size_to_font_token(default_size, "sm");
 }

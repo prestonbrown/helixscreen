@@ -100,7 +100,6 @@ bool ThemeData::is_valid() const {
     if (name.empty()) {
         return false;
     }
-    // At least one of dark/light must be valid
     return dark.is_valid() || light.is_valid();
 }
 
@@ -220,7 +219,6 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
     ThemeData theme;
     theme.filename = filename;
 
-    // Remove .json extension if present
     if (theme.filename.size() > 5 && theme.filename.substr(theme.filename.size() - 5) == ".json") {
         theme.filename = theme.filename.substr(0, theme.filename.size() - 5);
     }
@@ -231,9 +229,9 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
     // its own instead: they go through the safe_* helpers, because .value()
     // throws type_error.302 on a key that is PRESENT with a null value (a
     // missing key is fine) and type_error.306 when the receiver is not an
-    // object. Under the old wide try, one `"shadow_intensity": null` threw into
-    // the catch and replaced the user's ENTIRE theme — both palettes, every
-    // property — with the built-in theme. A bad property is now worth exactly that
+    // object. With the reads inside one wide try, a single `"shadow_intensity": null`
+    // reaching the catch would replace the user's ENTIRE theme, both palettes and
+    // every property, with the built-in theme. A bad property is worth exactly that
     // property.
     nlohmann::json json = nlohmann::json::parse(json_str, nullptr, false);
     if (json.is_discarded()) {
@@ -248,7 +246,6 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
 
     theme.name = helix::json_util::safe_string(json, "name", "Unnamed Theme");
 
-    // Theme must have "dark" and/or "light" palette objects
     const nlohmann::json* dark = helix::json_util::find_member(json, "dark");
     const nlohmann::json* light = helix::json_util::find_member(json, "light");
     bool has_dark = dark != nullptr;
@@ -273,10 +270,9 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
     // Old format: border_radius (raw pixels) — auto-migrate
     //
     // Note the migration branch keys off contains(), so a null border_radius
-    // _size takes the new-format branch and safe_int yields 3 ("Soft"), the
-    // same value the old default argument carried. It does NOT fall through to
-    // the legacy border_radius migration, which is correct: the key is present,
-    // so this is a new-format theme with one unreadable field.
+    // _size takes the new-format branch and safe_int yields 3 ("Soft"). It does
+    // NOT fall through to the legacy border_radius migration, which is correct:
+    // the key is present, so this is a new-format theme with one unreadable field.
     if (json.contains("border_radius_size")) {
         theme.properties.border_radius_size =
             std::clamp(helix::json_util::safe_int(json, "border_radius_size", 3), 0,
@@ -303,13 +299,10 @@ ThemeData load_theme_from_file(const std::string& filepath_or_name) {
     std::string filepath = filepath_or_name;
     std::string filename;
 
-    // Check if this is a full path or just a theme name
     if (filepath_or_name.find('/') == std::string::npos) {
-        // Just a theme name - look up in directories
         std::string themes_dir = get_themes_directory();
         std::string defaults_dir = get_default_themes_directory();
 
-        // Add .json extension if not present
         std::string name_with_ext = filepath_or_name;
         if (name_with_ext.size() < 5 || name_with_ext.substr(name_with_ext.size() - 5) != ".json") {
             name_with_ext += ".json";
@@ -322,7 +315,6 @@ ThemeData load_theme_from_file(const std::string& filepath_or_name) {
             filepath = user_path;
             spdlog::debug("[ThemeLoader] Loading user theme from {}", filepath);
         } else {
-            // Fall back to defaults directory
             std::string defaults_path = defaults_dir + "/" + name_with_ext;
             if (stat(defaults_path.c_str(), &st) == 0) {
                 filepath = defaults_path;
@@ -341,7 +333,6 @@ ThemeData load_theme_from_file(const std::string& filepath_or_name) {
         return {};
     }
 
-    // Extract filename from path
     filename = filepath;
     size_t slash = filepath.rfind('/');
     if (slash != std::string::npos) {
@@ -368,7 +359,6 @@ bool save_theme_to_file(const ThemeData& theme, const std::string& filepath) {
 
     json["name"] = theme.name;
 
-    // Save dark and/or light palettes
     if (theme.dark.is_valid()) {
         json["dark"] = serialize_mode_palette(theme.dark);
     }
@@ -376,7 +366,6 @@ bool save_theme_to_file(const ThemeData& theme, const std::string& filepath) {
         json["light"] = serialize_mode_palette(theme.light);
     }
 
-    // Properties
     json["border_radius_size"] = theme.properties.border_radius_size;
     json["border_width"] = theme.properties.border_width;
     json["border_opacity"] = theme.properties.border_opacity;
@@ -427,7 +416,6 @@ std::string get_default_themes_directory() {
 bool has_default_theme(const std::string& filename) {
     std::string defaults_dir = get_default_themes_directory();
 
-    // Add .json extension if not present
     std::string name_with_ext = filename;
     if (name_with_ext.size() < 5 || name_with_ext.substr(name_with_ext.size() - 5) != ".json") {
         name_with_ext += ".json";
@@ -439,7 +427,6 @@ bool has_default_theme(const std::string& filename) {
 }
 
 std::optional<ThemeData> reset_theme_to_default(const std::string& filename) {
-    // Check if a default exists
     if (!has_default_theme(filename)) {
         spdlog::debug("[ThemeLoader] No default theme for '{}', cannot reset", filename);
         return std::nullopt;
@@ -448,13 +435,11 @@ std::optional<ThemeData> reset_theme_to_default(const std::string& filename) {
     std::string themes_dir = get_themes_directory();
     std::string defaults_dir = get_default_themes_directory();
 
-    // Add .json extension if not present
     std::string name_with_ext = filename;
     if (name_with_ext.size() < 5 || name_with_ext.substr(name_with_ext.size() - 5) != ".json") {
         name_with_ext += ".json";
     }
 
-    // Delete user override if it exists
     std::string user_path = themes_dir + "/" + name_with_ext;
     struct stat st;
     if (stat(user_path.c_str(), &st) == 0) {
@@ -465,7 +450,6 @@ std::optional<ThemeData> reset_theme_to_default(const std::string& filename) {
         spdlog::info("[ThemeLoader] Deleted user theme override: {}", user_path);
     }
 
-    // Load and return the default theme
     std::string defaults_path = defaults_dir + "/" + name_with_ext;
     return load_theme_from_file(defaults_path);
 }
@@ -525,7 +509,6 @@ bool ensure_themes_directory(const std::string& themes_dir) {
         spdlog::info("[ThemeLoader] Created config directory: {}", config_dir);
     }
 
-    // Then create themes directory if it doesn't exist
     if (stat(themes_dir.c_str(), &st) != 0) {
         if (mkdir(themes_dir.c_str(), 0750) != 0) {
             spdlog::error("[ThemeLoader] Failed to create themes directory {}: {}", themes_dir,
@@ -548,7 +531,6 @@ std::vector<ThemeInfo> discover_themes(const std::string& themes_dir) {
     std::vector<ThemeInfo> themes;
     std::set<std::string> seen_filenames;
 
-    // Helper lambda to scan a directory
     auto scan_directory = [&](const std::string& dir_path, bool is_defaults) {
         DIR* dir = opendir(dir_path.c_str());
         if (!dir) {
@@ -563,12 +545,10 @@ std::vector<ThemeInfo> discover_themes(const std::string& themes_dir) {
         while ((entry = readdir(dir)) != nullptr) {
             std::string filename = entry->d_name;
 
-            // Skip non-json files
             if (filename.size() <= 5 || filename.substr(filename.size() - 5) != ".json") {
                 continue;
             }
 
-            // Skip hidden files
             if (filename[0] == '.') {
                 continue;
             }
@@ -598,11 +578,9 @@ std::vector<ThemeInfo> discover_themes(const std::string& themes_dir) {
     // First scan user themes directory (takes precedence)
     scan_directory(themes_dir, false);
 
-    // Then scan defaults directory
     std::string defaults_dir = get_default_themes_directory();
     scan_directory(defaults_dir, true);
 
-    // Sort alphabetically by display name
     helix::sort_small(themes.begin(), themes.end(), [](const ThemeInfo& a, const ThemeInfo& b) {
         return a.display_name < b.display_name;
     });

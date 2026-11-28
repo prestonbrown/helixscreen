@@ -114,8 +114,8 @@ void update_split_button_contrast(lv_obj_t* sb) {
 
 void split_button_style_changed_cb(lv_event_t* e) {
     lv_obj_t* sb = lv_event_get_target_obj(e);
-    // Defer contrast update to avoid setting styles during refresh_children_style
-    // cascade — same fix as ui_button.cpp (#729).
+    // Defer the contrast update, as ui_button.cpp does (#729), to avoid setting
+    // styles during the refresh_children_style cascade.
     helix::ui::queue_widget_update(sb, [](lv_obj_t* obj) { update_split_button_contrast(obj); });
 }
 
@@ -183,7 +183,6 @@ void style_dropdown_list(lv_obj_t* sb, lv_obj_t* list) {
     lv_obj_set_style_text_color(list, text_color, LV_PART_MAIN);
     lv_obj_set_style_border_color(list, text_color, LV_PART_MAIN);
     lv_obj_set_style_border_opa(list, LV_OPA_30, LV_PART_MAIN);
-    // Selected item highlight
     lv_obj_set_style_bg_color(list, text_color, LV_PART_SELECTED);
     lv_obj_set_style_bg_opa(list, LV_OPA_20, LV_PART_SELECTED);
     lv_obj_set_style_text_color(list, text_color, LV_PART_SELECTED);
@@ -217,7 +216,6 @@ void arrow_btn_clicked_cb(lv_event_t* e) {
     lv_event_stop_bubbling(e); // Don't trigger container's CLICKED (main action)
     SoundManager::instance().play("button_tap");
 
-    // Toggle: close if already open
     if (lv_dropdown_is_open(data->dropdown)) {
         close_dropdown(data);
         return;
@@ -225,15 +223,12 @@ void arrow_btn_clicked_cb(lv_event_t* e) {
 
     lv_dropdown_open(data->dropdown);
 
-    // Style and reposition the list
     lv_obj_t* list = lv_dropdown_get_list(data->dropdown);
     if (list) {
         style_dropdown_list(sb, list);
 
-        // Smart positioning: open upward if dropdown would overflow the screen bottom
         lv_obj_update_layout(list);
         int32_t sb_y = lv_obj_get_y(sb);
-        // Walk up parents to get absolute screen Y
         lv_obj_t* p = lv_obj_get_parent(sb);
         while (p && p != lv_screen_active()) {
             sb_y += lv_obj_get_y(p) - lv_obj_get_scroll_y(p);
@@ -415,7 +410,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_flex_align(sb, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollable(sb, false);
 
-    // Apply variant style to container
     const char* variant_str = lv_xml_get_value_of(attrs, "variant");
     if (!variant_str)
         variant_str = "primary";
@@ -425,7 +419,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         lv_obj_add_style(sb, style, LV_PART_MAIN);
     }
 
-    // Parse attributes
     const char* text = lv_xml_get_value_of(attrs, "text");
     if (!text)
         text = "";
@@ -456,7 +449,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
                                 LV_PART_MAIN);
     lv_obj_set_style_pad_left(data->main_btn, theme_manager_get_spacing("space_xs"), LV_PART_MAIN);
 
-    // Icon (optional)
     if (icon_name && strlen(icon_name) > 0) {
         data->icon = create_icon(data->main_btn, icon_name);
     }
@@ -470,7 +462,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_label_set_max_lines(data->label, 1);
     lv_label_set_text(data->label, text);
 
-    // Main button click handler
     lv_obj_add_event_cb(data->main_btn, main_btn_clicked_cb, LV_EVENT_CLICKED, nullptr);
 
     // --- Divider ---
@@ -501,7 +492,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_set_flex_align(data->arrow_btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
 
-    // Chevron down icon
     lv_obj_t* chevron = lv_label_create(data->arrow_btn);
     const char* chevron_cp = helix::ui::icon::lookup_codepoint("chevron_down");
     if (chevron_cp) {
@@ -509,7 +499,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     }
     lv_obj_set_style_text_font(chevron, get_button_icon_font(), LV_PART_MAIN);
 
-    // Arrow button click handler
     lv_obj_add_event_cb(data->arrow_btn, arrow_btn_clicked_cb, LV_EVENT_CLICKED, nullptr);
 
     // --- Hidden dropdown (zero-height, full-width for popup list positioning) ---
@@ -536,7 +525,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         lv_dropdown_set_options(data->dropdown, options);
     }
 
-    // Dropdown value changed handler
     lv_obj_add_event_cb(data->dropdown, dropdown_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 
     // Compute label width from available space after layout resolves.
@@ -563,7 +551,6 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
                       lv_obj_get_content_width(d->main_btn));
     });
 
-    // Also recompute label width on resize (breakpoint changes, etc.)
     lv_obj_add_event_cb(
         sb,
         [](lv_event_t* e) {
@@ -583,12 +570,10 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Register event handlers on container
     lv_obj_add_event_cb(sb, split_button_style_changed_cb, LV_EVENT_STYLE_CHANGED, nullptr);
     lv_obj_add_event_cb(sb, split_button_style_changed_cb, LV_EVENT_STATE_CHANGED, nullptr);
     lv_obj_add_event_cb(sb, split_button_delete_cb, LV_EVENT_DELETE, data);
 
-    // Apply initial contrast
     update_split_button_contrast(sb);
 
     spdlog::trace("[ui_split_button] Created variant='{}' text='{}' icon='{}' options='{}'",
@@ -609,27 +594,23 @@ void ui_split_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
     if (!data)
         return;
 
-    // Handle text_format attribute
     const char* text_format = lv_xml_get_value_of(attrs, "text_format");
     if (text_format && strlen(text_format) > 0) {
         lv_free(data->text_format);
         data->text_format = lv_strdup(text_format);
     }
 
-    // Handle show_selection attribute
     const char* show_sel = lv_xml_get_value_of(attrs, "show_selection");
     if (show_sel) {
         data->show_selection = (strcmp(show_sel, "false") != 0);
     }
 
-    // Handle selected attribute
     const char* selected = lv_xml_get_value_of(attrs, "selected");
     if (selected && data->dropdown) {
         uint32_t idx = static_cast<uint32_t>(atoi(selected));
         lv_dropdown_set_selected(data->dropdown, idx);
     }
 
-    // Update label from selection if show_selection is active
     if (data->show_selection && data->text_format) {
         update_label_from_selection(data);
     }

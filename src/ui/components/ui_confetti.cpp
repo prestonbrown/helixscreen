@@ -100,7 +100,6 @@ void update_particles(ConfettiData* data) {
         p.rotation += p.rotation_speed * dt;
         p.life -= dt / kParticleLifetime;
 
-        // Bounce off bottom
         if (p.y > data->height - p.base_h) {
             p.y = data->height - p.base_h;
             p.vy = -p.vy * 0.3f;
@@ -108,7 +107,6 @@ void update_particles(ConfettiData* data) {
         }
 
         if (p.life <= 0) {
-            // Hide dead particles
             lv_obj_set_hidden(p.obj, true);
             continue;
         }
@@ -123,14 +121,12 @@ void update_particles(ConfettiData* data) {
         int32_t h = std::max((int32_t)(p.base_h * (0.4f + 0.6f * (1.0f - rot_factor))), (int32_t)2);
         lv_obj_set_size(p.obj, w, h);
 
-        // Fade out near end of life
         if (p.life < kFadeStart) {
             lv_opa_t opa = (lv_opa_t)(255 * (p.life / kFadeStart));
             lv_obj_set_style_opa(p.obj, opa, LV_PART_MAIN);
         }
     }
 
-    // All particles dead — clean up
     if (!any_alive && data->timer) {
         lv_timer_delete(data->timer);
         data->timer = nullptr;
@@ -170,12 +166,10 @@ void delete_cb(lv_event_t* e) {
 }
 
 lv_obj_t* confetti_create_internal(lv_obj_t* parent) {
-    // Use display resolution for sizing
     lv_display_t* disp = lv_display_get_default();
     int32_t width = lv_display_get_horizontal_resolution(disp);
     int32_t height = lv_display_get_vertical_resolution(disp);
 
-    // Create transparent click-through container
     lv_obj_t* container = lv_obj_create(parent);
     lv_obj_remove_style_all(container);
     lv_obj_set_size(container, width, height);
@@ -240,12 +234,10 @@ void ui_confetti_burst(lv_obj_t* confetti, int count) {
         lv_obj_set_ignore_layout(p.obj, true);
         lv_obj_set_floating(p.obj, true);
 
-        // Random color
         lv_color_t color = kConfettiColors[random_int(data->rng, 0, kNumColors - 1)];
         lv_obj_set_style_bg_color(p.obj, color, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, LV_PART_MAIN);
 
-        // Random shape via border radius
         int shape = random_int(data->rng, 0, 2);
         if (shape == 2) {
             lv_obj_set_style_radius(p.obj, LV_RADIUS_CIRCLE, LV_PART_MAIN);
@@ -253,12 +245,10 @@ void ui_confetti_burst(lv_obj_t* confetti, int count) {
             lv_obj_set_style_radius(p.obj, 2, LV_PART_MAIN);
         }
 
-        // Size
         p.base_w = random_float(data->rng, 8, 16);
         p.base_h = (shape == 0) ? p.base_w * 0.5f : p.base_w; // Rectangles are wider
         lv_obj_set_size(p.obj, (int32_t)p.base_w, (int32_t)p.base_h);
 
-        // Position
         p.x = spawn_x + random_float(data->rng, -60, 60);
         p.y = spawn_y + random_float(data->rng, -30, 30);
         lv_obj_set_pos(p.obj, (int32_t)p.x, (int32_t)p.y);
@@ -276,7 +266,6 @@ void ui_confetti_burst(lv_obj_t* confetti, int count) {
         data->particles.push_back(p);
     }
 
-    // Start animation timer if not running
     if (!data->timer) {
         data->last_tick = lv_tick_get();
         data->timer = lv_timer_create(timer_cb, 16, confetti); // ~60 FPS
@@ -294,7 +283,6 @@ void ui_confetti_clear(lv_obj_t* confetti) {
         data->timer = nullptr;
     }
 
-    // Hide all particles
     for (auto& p : data->particles) {
         if (p.obj) {
             lv_obj_set_hidden(p.obj, true);

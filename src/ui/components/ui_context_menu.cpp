@@ -137,7 +137,6 @@ bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, 
         return false;
     }
 
-    // Store state
     parent_ = parent;
     item_index_ = item_index;
     anchor_mode_ = mode;
@@ -532,8 +531,7 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
     }
 
     // A group heading only earns its space when there is another group to tell it
-    // apart from. Alone, it restates the card header one line below it — the
-    // external-spool menu read "External Spool" and then "Spool".
+    // apart from. Alone, it restates the card header one line below it.
     for (uint32_t i = 0; i < col_cnt; i++) {
         lv_obj_t* col = lv_obj_get_child(columns, i);
         if (!col)
@@ -626,9 +624,9 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
 
     // High edge first, low edge LAST, on both axes. A card larger than the backdrop
     // gets pushed to a negative origin by the high-edge clamp, and a negative origin
-    // clips the header and the first row off the top — the failure #1212 was about.
-    // Clamping the low edge afterwards turns that into an overflowing tail instead,
-    // which is at least scrollable.
+    // clips the header and the first row off the top (#1212). Clamping the low edge
+    // afterwards turns that into an overflowing tail instead, which is at least
+    // scrollable.
     if (x + card.x > bounds.x - margin) {
         x = bounds.x - card.x - margin;
     }
@@ -844,7 +842,6 @@ void ContextMenu::attach_caret(lv_obj_t* menu_card, CaretPlacement caret, int32_
 }
 
 void ContextMenu::position_card(lv_obj_t* menu_card) {
-    // Update layout to get accurate dimensions
     lv_obj_update_layout(menu_card);
 
     lv_obj_t* backdrop = lv_obj_get_parent(menu_card);

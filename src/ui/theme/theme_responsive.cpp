@@ -219,7 +219,6 @@ const std::string& helix::theme_manager_pick_px_tier(const PxTierTables& t, cons
         auto it = t.xlarge.find(base);
         return (it != t.xlarge.end()) ? it->second : t.large.at(base);
     }
-    // _xxlarge: fall back to _xlarge, then _large.
     auto it = t.xxlarge.find(base);
     if (it != t.xxlarge.end())
         return it->second;
@@ -466,7 +465,6 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
         lv_xml_set_const(scope, base_name.c_str(), value.c_str());
     }
 
-    // Recalculate overlay widths from updated nav_width and space_lg
     const char* nav_width_str = lv_xml_get_const(nullptr, "nav_width");
     int32_t nav_width = nav_width_str ? std::atoi(nav_width_str) : 94;
 
@@ -487,8 +485,8 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     lv_xml_update_const(scope, "content_max_width", content_max_width_value(ver_res).c_str());
     lv_xml_update_const(scope, "dialog_max_width", dialog_max_width_value(ver_res).c_str());
 
-    // Update breakpoint subject — use shared helper so rotation never
-    // downgrades XXLarge to XLarge (previous bug: missing XLARGE_MAX check).
+    // Update breakpoint subject through the shared helper, so rotation never
+    // downgrades XXLarge to XLarge.
     UiBreakpoint bp = breakpoint_for(resp_res);
 
     lv_subject_t* bp_subject = lv_xml_get_subject(nullptr, "ui_breakpoint");
@@ -515,8 +513,8 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     theme_manager_refresh_orientation(display);
 
     // Type has to follow the breakpoint too. The px tokens above moved the
-    // boxes; without the two calls below the fonts stayed sized for the startup
-    // breakpoint, so a resize rescaled layout but not type (#1210).
+    // boxes; without these calls the fonts stay sized for the startup breakpoint,
+    // so a resize rescales layout but not type (#1210).
     //
     // Order is load-bearing: AssetManager decides which font tiers exist in
     // memory at all, and startup deliberately skips the tiers above its own. If
@@ -528,7 +526,7 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     theme_manager_refresh_base_font(display);
 
     // Switch size presets are the same ladder expressed as plain C++ values,
-    // and were likewise chosen once at startup (#1210, Notes).
+    // and likewise have to follow the breakpoint (#1210, Notes).
     ui_switch_init_size_presets(display);
 
     for (const auto& [id, hook] : layout_refresh_hooks())
@@ -547,9 +545,8 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
  * The value returned is responsive - it depends on what breakpoint was used
  * during theme initialization (small/medium/large).
  *
- * This function is the C++ interface to the unified spacing system, replacing
- * the old hardcoded UI_PADDING_* constants. All spacing in C++ code should now
- * use this function to stay consistent with XML layouts.
+ * This function is the C++ interface to the unified spacing system. All spacing
+ * in C++ code should go through it to stay consistent with XML layouts.
  *
  * Available tokens and their responsive values:
  *   space_xxs: 2/3/4px  (small/medium/large)

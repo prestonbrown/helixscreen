@@ -201,7 +201,6 @@ static void gradient_resize_to_widget(lv_obj_t* obj) {
     int32_t buf_w = std::min(w, kMaxGradientDim);
     int32_t buf_h = std::min(h, kMaxGradientDim);
 
-    // Skip if buffer already matches
     if (data->draw_buf && data->draw_buf->header.w == buf_w && data->draw_buf->header.h == buf_h)
         return;
 
@@ -240,7 +239,6 @@ static void gradient_delete_cb(lv_event_t* e) {
         // The buffer was this image widget's src until now; a blend of it may
         // still be in flight.
         helix::safe_draw_buf_destroy(data->draw_buf, "grad_cv");
-        // data automatically freed
     }
 }
 
@@ -265,7 +263,6 @@ static void* ui_gradient_canvas_xml_create(lv_xml_parser_state_t* state, const c
         return nullptr;
     }
 
-    // Initialize gradient data — theme_colors=true means auto dark/light
     auto data_ptr = std::make_unique<GradientData>();
     data_ptr->dither = true;
     data_ptr->theme_colors = true;
@@ -293,14 +290,11 @@ static void* ui_gradient_canvas_xml_create(lv_xml_parser_state_t* state, const c
     // COVER scales the buffer to fill the widget (clips overflow)
     lv_image_set_inner_align(img, LV_IMAGE_ALIGN_COVER);
 
-    // Remove default styling
     lv_obj_set_style_border_width(img, 0, 0);
     lv_obj_set_style_pad_all(img, 0, 0);
     lv_obj_set_scrollable(img, false);
 
-    // Self-size: recreate buffer when widget dimensions resolve
     lv_obj_add_event_cb(img, gradient_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
-    // Cleanup handler
     lv_obj_add_event_cb(img, gradient_delete_cb, LV_EVENT_DELETE, nullptr);
 
     spdlog::trace("[GradientCanvas] Created gradient (initial {}x{} buffer)", init_size, init_size);
@@ -322,7 +316,6 @@ static void ui_gradient_canvas_xml_apply(lv_xml_parser_state_t* state, const cha
     GradientData* data = get_gradient_data(obj);
     bool colors_changed = false;
 
-    // Parse custom attributes
     for (int i = 0; attrs[i] && attrs[i + 1]; i += 2) {
         if (strcmp(attrs[i], "start_color") == 0) {
             if (data) {
@@ -344,10 +337,8 @@ static void ui_gradient_canvas_xml_apply(lv_xml_parser_state_t* state, const cha
         }
     }
 
-    // Apply standard lv_obj properties (size, position, etc.)
     lv_xml_obj_apply(state, attrs);
 
-    // Re-render gradient if colors changed
     if (colors_changed && data) {
         render_gradient_buffer(data);
         // Note: No explicit invalidate needed - LVGL will redraw when buffer is accessed

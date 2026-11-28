@@ -121,7 +121,6 @@ static void relayout_connectors(StepProgressData* data, lv_obj_t* container) {
         lv_obj_t* current_indicator = lv_obj_get_parent(current_circle);
         lv_obj_t* next_indicator = lv_obj_get_parent(next_circle);
 
-        // Absolute circle positions within container (step + indicator + circle offsets)
         auto abs_x = [](lv_obj_t* step, lv_obj_t* ind, lv_obj_t* circ) {
             return lv_obj_get_x(step) + lv_obj_get_x(ind) + lv_obj_get_x(circ);
         };
@@ -237,7 +236,6 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
         return nullptr;
     }
 
-    // Transfer ownership to LVGL widget
     lv_obj_set_user_data(container, data_ptr.release());
 
     lv_obj_add_event_cb(container, step_progress_delete_cb, LV_EVENT_DELETE, nullptr);

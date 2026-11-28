@@ -18,11 +18,9 @@
 // Track all header_bar instances for resize handling
 static std::vector<lv_obj_t*> header_instances;
 
-// Event handler for DELETE event (cleanup)
 static void header_bar_delete_cb(lv_event_t* e) {
     lv_obj_t* header = (lv_obj_t*)lv_event_get_target(e);
 
-    // Remove from tracking list
     auto it = std::find(header_instances.begin(), header_instances.end(), header);
     if (it != header_instances.end()) {
         header_instances.erase(it);
@@ -52,7 +50,6 @@ static void on_app_resize() {
 // INITIALIZATION
 
 void ui_component_header_bar_init() {
-    // Register global resize callback for all header_bar instances
     if (auto* dm = DisplayManager::instance()) {
         dm->register_resize_callback(on_app_resize);
     }
@@ -65,10 +62,8 @@ void ui_component_header_bar_setup(lv_obj_t* header, lv_obj_t* screen) {
         return;
     }
 
-    // Attach DELETE event for cleanup
     lv_obj_add_event_cb(header, header_bar_delete_cb, LV_EVENT_DELETE, nullptr);
 
-    // Track this instance for global resize handling
     header_instances.push_back(header);
 
     // Apply responsive height immediately

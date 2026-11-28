@@ -50,8 +50,8 @@ static SwitchSizePreset SIZE_LARGE;
 void ui_switch_init_size_presets(lv_display_t* display) {
     // Select the preset tier from the constrained axis (min of width/height), so
     // portrait screens size switches to their narrow axis instead of their tall
-    // one. Landscape is unchanged: there the min axis is already the height this
-    // used before. Mirrors the responsive_dimension() convention in theme_manager.
+    // one. A landscape screen is sized by its height either way. Mirrors the
+    // responsive_dimension() convention in theme_manager.
     int32_t resp_res = responsive_dimension(display);
 
     // Margin calculation: knob extends ~25% beyond track on each side
@@ -308,14 +308,12 @@ static void ui_switch_xml_apply(lv_xml_parser_state_t* state, const char** attrs
         const char* value = attrs[i + 1];
 
         if (strcmp(name, "checked") == 0) {
-            // Handle checked state
             if (strcmp(value, "true") == 0 || strcmp(value, "1") == 0) {
                 lv_obj_add_state(obj, LV_STATE_CHECKED);
             } else {
                 lv_obj_remove_state(obj, LV_STATE_CHECKED);
             }
         } else if (strcmp(name, "orientation") == 0) {
-            // Handle orientation
             if (strcmp(value, "horizontal") == 0) {
                 lv_switch_set_orientation(obj, LV_SWITCH_ORIENTATION_HORIZONTAL);
             } else if (strcmp(value, "vertical") == 0) {
@@ -341,7 +339,6 @@ static void ui_switch_xml_apply(lv_xml_parser_state_t* state, const char** attrs
         spdlog::trace("[Switch] Explicit knob_pad override: {}px", explicit_knob_pad);
     }
 
-    // Log final state
     int32_t actual_w = lv_obj_get_width(obj);
     int32_t actual_h = lv_obj_get_height(obj);
     int32_t actual_knob_pad = lv_obj_get_style_pad_left(obj, LV_PART_KNOB);
@@ -404,7 +401,6 @@ void ui_switch_register_responsive_constants() {
         label_font = "montserrat_12";
         label_large_font = "montserrat_14";
 
-        // Large variant
         switch_height_large = "28";
         switch_width_large = "56";
         knob_pad_large = "2";
@@ -420,7 +416,6 @@ void ui_switch_register_responsive_constants() {
         label_font = "montserrat_16";
         label_large_font = "montserrat_20";
 
-        // Large variant
         switch_height_large = "44";
         switch_width_large = "88";
         knob_pad_large = "3";
@@ -428,18 +423,15 @@ void ui_switch_register_responsive_constants() {
         spdlog::trace("[Switch] Screen: MEDIUM (greater_res={}px), switch: {}x{}, row: {}px",
                       greater_res, switch_width, switch_height, row_height);
     } else { // >800: 1024x600+
-        // Switch: 44px height, 88px width
-        // Knob: 3px padding
-        // Row: 44 + (2 * 20) = 84px
         switch_height = "44";
         switch_width = "88";
         knob_pad = "6";
+        // Row: the switch plus a 20px margin above and below.
         row_height = "84";
         row_height_large = "104";
         label_font = "montserrat_20";
         label_large_font = lv_xml_get_const(NULL, "font_heading");
 
-        // Large variant
         switch_height_large = "56";
         switch_width_large = "112";
         knob_pad_large = "4";
@@ -448,14 +440,12 @@ void ui_switch_register_responsive_constants() {
                       greater_res, switch_width, switch_height, row_height);
     }
 
-    // Get globals scope for constant registration
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope) {
         spdlog::error("[Switch] Failed to get globals scope for constant registration");
         return;
     }
 
-    // Register test panel constants
     lv_xml_register_const(scope, "test_switch_width", switch_width);
     lv_xml_register_const(scope, "test_switch_height", switch_height);
     lv_xml_register_const(scope, "test_switch_knob_pad", knob_pad);

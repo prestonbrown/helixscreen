@@ -118,14 +118,12 @@ static helix::ThemeData theme_manager_load_active_theme() {
     // Ensure the user themes directory exists (shipped themes live in defaults/)
     helix::ensure_themes_directory(themes_dir);
 
-    // Check for HELIX_THEME env var override (useful for testing/screenshots)
     std::string theme_name;
     const char* env_theme = std::getenv("HELIX_THEME");
     if (env_theme && env_theme[0] != '\0') {
         theme_name = env_theme;
         spdlog::info("[Theme] Using HELIX_THEME override: {}", theme_name);
     } else {
-        // Read theme name from config
         Config* config = Config::get_instance();
         theme_name = config->get<std::string>("/display/theme", helix::kDefaultTheme);
     }
@@ -227,7 +225,6 @@ static void publish_changed_subject() {
 
 /// The breakpoint and orientation subjects, published from the display's geometry.
 static void publish_layout_subjects(lv_display_t* display) {
-    // Initialize ui_breakpoint subject for reactive responsive visibility
     {
         int32_t resp_res = responsive_dimension(display);
         UiBreakpoint bp = breakpoint_for(resp_res);
@@ -315,7 +312,6 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().init_v_res = v_res;
     runtime().full_init_count++;
 
-    // Initialize theme change notification subject
     publish_changed_subject();
 
     // Override runtime theme constants based on light/dark mode preference
@@ -326,12 +322,11 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         std::exit(EXIT_FAILURE);
     }
 
-    // Load active theme from config/themes directory
     runtime().active_theme = theme_manager_load_active_theme();
 
     // Register semantic colors from dual-palette system (includes _light/_dark variants and base
-    // names) NOTE: Legacy palette registration removed - was causing token collisions (text_light
-    // conflict)
+    // names). The legacy palette registration is left out: it collides with tokens
+    // (text_light).
     register_semantic_colors(scope, runtime().active_theme, runtime().dark);
 
     // Register theme properties (border_radius, etc.) - must be before static constants
@@ -354,7 +349,6 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
 
     publish_layout_subjects(display);
 
-    // Validate critical color pairs were registered (fail-fast if missing)
     static const char* required_colors[] = {"screen_bg", "text", "text_muted", nullptr};
     for (const char** name = required_colors; *name != nullptr; ++name) {
         if (!lv_xml_get_const(nullptr, *name)) {
@@ -369,7 +363,6 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
 
     const lv_font_t* base_font = resolve_base_font(display);
 
-    // Build palette from current mode
     const helix::ModePalette& mode_palette = get_current_mode_palette();
     theme_palette_t palette = build_palette_from_mode(mode_palette);
 
@@ -438,7 +431,6 @@ void theme_manager_apply_theme(const helix::ThemeData& theme, bool dark_mode) {
         return;
     }
 
-    // Respect theme mode support constraints
     bool effective_dark = dark_mode;
     auto mode_support = theme.get_mode_support();
     if (mode_support == helix::ThemeModeSupport::DARK_ONLY) {
@@ -464,17 +456,14 @@ void theme_manager_apply_theme(const helix::ThemeData& theme, bool dark_mode) {
     spdlog::info("[Theme] Applying theme '{}' in {} mode", theme.name,
                  effective_dark ? "dark" : "light");
 
-    // Log palette for debugging
     const helix::ModePalette& mode_palette = get_current_mode_palette();
     spdlog::debug("[Theme] Colors: screen={}, card={}, text={}", mode_palette.screen_bg,
                   mode_palette.card_bg, mode_palette.text);
 
     theme_detail::set_swap_maps(have_old ? &old_mp : nullptr, mode_palette);
 
-    // Update ThemeManager stored palettes and apply current mode
     theme_update_colors(effective_dark);
 
-    // Re-register XML constants: semantic colors, theme properties, and color pairs
     register_semantic_colors(nullptr, runtime().active_theme, effective_dark);
     register_theme_properties(nullptr, runtime().active_theme, effective_dark);
 
@@ -513,10 +502,8 @@ void theme_manager_apply_theme(const helix::ThemeData& theme, bool dark_mode) {
     theme_manager_refresh_widget_tree(lv_screen_active());
     theme_apply_current_palette_to_tree(lv_screen_active());
 
-    // Refresh ui_gradient_canvas widgets for the new dark/light mode
     ui_gradient_canvas_theme_update(lv_screen_active());
 
-    // Invalidate and notify
     lv_obj_invalidate(lv_screen_active());
     theme_manager_notify_change();
 
@@ -575,7 +562,6 @@ void theme_apply_current_palette_to_tree(lv_obj_t* root) {
     if (!root)
         return;
 
-    // Get the active palette based on current mode
     const helix::ModePalette& palette =
         runtime().dark ? runtime().active_theme.dark : runtime().active_theme.light;
 
@@ -591,7 +577,6 @@ void theme_apply_current_palette_to_tree(lv_obj_t* root) {
 // the _light/_dark variants exists.
 static const char* lookup_color_token(const char* base_name, bool* partial) {
     *partial = false;
-    // Construct variant names: {base_name}_light and {base_name}_dark
     char light_name[128];
     char dark_name[128];
     snprintf(light_name, sizeof(light_name), "%s_light", base_name);
@@ -603,7 +588,6 @@ static const char* lookup_color_token(const char* base_name, bool* partial) {
     const char* dark_str = lv_xml_get_const_silent(nullptr, dark_name);
 
     if (light_str && dark_str) {
-        // Both variants exist - use theme-appropriate one
         return runtime().dark ? dark_str : light_str;
     }
 

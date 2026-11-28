@@ -133,7 +133,6 @@ void carousel_scroll_end_cb(lv_event_t* e) {
         return;
     }
 
-    // The carousel container is the parent of the scroll container
     lv_obj_t* container = lv_obj_get_parent(scroll);
     if (!container) {
         return;
@@ -352,12 +351,10 @@ void ui_carousel_apply(lv_xml_parser_state_t* state, const char** attrs) {
                                                              strcmp(bubble_str, "1") == 0);
     }
 
-    // Hide indicator row if indicators are disabled
     if (!cstate->show_indicators && cstate->indicator_row) {
         lv_obj_set_hidden(cstate->indicator_row, true);
     }
 
-    // Parse current_page_subject for subject binding
     const char* subject_name = lv_xml_get_value_of(attrs, "current_page_subject");
     if (subject_name && subject_name[0] != '\0') {
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, subject_name);
@@ -369,7 +366,6 @@ void ui_carousel_apply(lv_xml_parser_state_t* state, const char** attrs) {
         }
     }
 
-    // Start auto-advance timer if configured
     if (cstate->auto_scroll_ms > 0) {
         ui_carousel_start_auto_advance(container);
     }
@@ -456,25 +452,21 @@ static lv_obj_t* carousel_create_core(lv_obj_t* parent) {
     lv_obj_set_style_border_width(indicator_row, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(indicator_row, LV_OPA_TRANSP, LV_PART_MAIN);
 
-    // Allocate and store carousel state
     CarouselState* cstate = new CarouselState();
     cstate->scroll_container = scroll;
     cstate->indicator_row = indicator_row;
     lv_obj_set_user_data(container, cstate);
 
-    // Register delete handler for cleanup
     lv_obj_add_event_cb(container, carousel_delete_cb, LV_EVENT_DELETE, nullptr);
 
     // XML children become pages
     lv_xml_set_child_host(container, xml_page_host, nullptr);
 
-    // Register scroll-end handler for page tracking from swipe gestures
     lv_obj_add_event_cb(scroll, carousel_scroll_end_cb, LV_EVENT_SCROLL_END, nullptr);
 
     // Only a swipe or a goto moves the page; focus never does
     lv_obj_add_event_cb(scroll, carousel_scroll_begin_cb, LV_EVENT_SCROLL_BEGIN, nullptr);
 
-    // Register touch handlers for auto-advance pause/resume
     lv_obj_add_event_cb(scroll, carousel_press_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(scroll, carousel_release_cb, LV_EVENT_RELEASED, nullptr);
 
@@ -556,12 +548,10 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
         return;
     }
 
-    // Clear existing dots
     helix::ui::safe_clean_children(state->indicator_row);
 
     const int count = page_count(*state);
 
-    // Single page: no indicators
     if (count <= 1) {
         lv_obj_set_hidden(state->indicator_row, true);
         spdlog::trace("[ui_carousel] Single page — indicators hidden");
@@ -572,7 +562,6 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
         lv_obj_set_hidden(state->indicator_row, false);
     }
 
-    // Create one dot per real page
     for (int i = 0; i < count; i++) {
         lv_obj_t* dot = lv_obj_create(state->indicator_row);
         // Strip LVGL's default theme styles so only our explicit styles apply
@@ -583,7 +572,6 @@ void ui_carousel_rebuild_indicators(lv_obj_t* carousel) {
         lv_obj_set_scrollable(dot, false);
     }
 
-    // Apply active/inactive styles
     update_indicators(state);
 
     spdlog::trace("[ui_carousel] Rebuilt indicators ({} dots)", count);
@@ -595,7 +583,6 @@ void ui_carousel_start_auto_advance(lv_obj_t* carousel) {
         return;
     }
 
-    // Stop any existing timer first
     if (state->auto_timer) {
         lv_timer_delete(state->auto_timer);
         state->auto_timer = nullptr;
@@ -657,10 +644,8 @@ void ui_carousel_remove_item(lv_obj_t* carousel, int index) {
     lv_obj_t* tile = state->real_tiles[static_cast<size_t>(index)];
     lv_obj_delete(tile);
 
-    // Remove from tracking vector
     state->real_tiles.erase(state->real_tiles.begin() + index);
 
-    // Adjust current_page if it was pointing at or past the removed item
     int new_count = static_cast<int>(state->real_tiles.size());
     if (new_count == 0) {
         state->current_page = 0;

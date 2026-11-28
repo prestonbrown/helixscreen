@@ -119,7 +119,6 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
     case helix::AmsBufferRows::SyncDrive: {
         lv_subject_set_int(&type_subject_, 1);
 
-        // Spool motor
         switch (info.spool_motor) {
         case helix::SpoolMotorAction::None:
             lv_subject_set_int(&show_espooler_subject_, 0);
@@ -138,11 +137,9 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
             break;
         }
 
-        // Gear sync
         lv_subject_set_string(&gear_sync_value_subject_,
                               info.sync_drive ? lv_tr("Active") : lv_tr("Inactive"));
 
-        // Flow rate
         if (info.sync_feedback_flow_rate >= 0) {
             auto flow_str = fmt::format("{:.0f}%", info.sync_feedback_flow_rate);
             lv_subject_set_string(&flow_value_subject_, flow_str.c_str());
@@ -169,7 +166,6 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
                 const auto& bh = unit.buffer_health.value();
                 found_health = true;
 
-                // State
                 switch (bh.motion) {
                 case helix::BufferMotion::Compressed:
                     lv_subject_set_string(
@@ -191,7 +187,6 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
                     break;
                 }
 
-                // Distance
                 if (bh.fault_detection_enabled && bh.distance_to_fault >= 0) {
                     auto d = fmt::format("{:.1f} mm {}", bh.distance_to_fault,
                                          lv_tr("remaining before clog detection triggers"));

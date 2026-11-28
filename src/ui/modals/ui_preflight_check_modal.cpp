@@ -266,7 +266,6 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
         }
     }
 
-    // Severity glyph + color.
     if (auto* sev_icon = helix::ui::find_required(row, "severity_icon", get_name())) {
         const auto vis = severity_visual(check.severity);
         helix::ui::icon::set_source(sev_icon, vis.icon_src);

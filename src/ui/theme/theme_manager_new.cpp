@@ -93,7 +93,6 @@ void ThemeManager::init() {
         light_palette_.border = lv_color_hex(0xD8DEE9);     // Nord Snow Storm
     }
 
-    // Apply current palette
     apply_palette(dark_mode_ ? dark_palette_ : light_palette_);
     initialized_ = true;
 }
@@ -115,13 +114,11 @@ lv_style_t* ThemeManager::get_style(StyleRole role) {
 void ThemeManager::register_style_configs() {
     using namespace style_configs;
 
-    // Initialize all styles
     for (size_t i = 0; i < styles_.size(); ++i) {
         styles_[i].role = static_cast<StyleRole>(i);
         lv_style_init(&styles_[i].style);
     }
 
-    // Register configure functions
     styles_[static_cast<size_t>(StyleRole::Card)].configure = configure_card;
     styles_[static_cast<size_t>(StyleRole::Dialog)].configure = configure_dialog;
     styles_[static_cast<size_t>(StyleRole::ObjBase)].configure = configure_obj_base;
@@ -215,14 +212,12 @@ void ThemeManager::set_dark_mode(bool dark) {
 void ThemeManager::set_palettes(const ThemePalette& light, const ThemePalette& dark) {
     light_palette_ = light;
     dark_palette_ = dark;
-    // Update current palette if already initialized
     if (initialized_) {
         apply_palette(dark_mode_ ? dark_palette_ : light_palette_);
     }
 }
 
 lv_color_t ThemeManager::get_color(std::string_view name) const {
-    // Map name to palette field
     if (name == "screen_bg")
         return current_palette_.screen_bg;
     if (name == "overlay_bg")

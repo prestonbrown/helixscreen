@@ -265,7 +265,6 @@ void theme_manager_parse_xml_file_for_suffix(
 std::vector<std::string> theme_manager_find_xml_files(const char* directory, bool recursive) {
     std::vector<std::string> result;
 
-    // Handle NULL directory gracefully
     if (!directory) {
         spdlog::trace("[Theme] find_xml_files: NULL directory");
         return result;
@@ -337,7 +336,6 @@ theme_manager_parse_all_xml_for_suffix(const char* directory, const char* elemen
 
     std::unordered_map<std::string, std::string> token_values;
 
-    // Get sorted list of all XML files
     std::vector<std::string> files = theme_manager_find_xml_files(directory);
 
     // Parse each file in alphabetical order (last-wins via map overwrite)
@@ -396,7 +394,6 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
             base_names.erase(border_radius);
         }
 
-        // Check for incomplete sets (_small/_medium/_large must be complete)
         for (const auto& [base_name, flags] : base_names) {
             if (flags != 7) { // Not all three present (111 in binary)
                 std::vector<std::string> found;
@@ -436,7 +433,6 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
             }
         }
 
-        // Warn about _tiny tokens without corresponding _small (likely a typo)
         for (const auto& [name, _] : tiny_tokens) {
             if (small_tokens.find(name) == small_tokens.end()) {
                 warnings.push_back("Token '" + name +
@@ -450,7 +446,6 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
         auto light_tokens = suffix_tokens("color", "_light");
         auto dark_tokens = suffix_tokens("color", "_dark");
 
-        // Collect all base names that have at least one theme suffix
         std::unordered_map<std::string, int> base_names;
         for (const auto& [name, _] : light_tokens) {
             base_names[name] |= 1; // bit 0 = _light
@@ -459,7 +454,6 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
             base_names[name] |= 2; // bit 1 = _dark
         }
 
-        // Check for incomplete pairs
         for (const auto& [base_name, flags] : base_names) {
             if (flags != 3) { // Not both present (11 in binary)
                 if (flags == 1) {

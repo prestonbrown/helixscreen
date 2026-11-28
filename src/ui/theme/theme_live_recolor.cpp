@@ -159,7 +159,6 @@ void set_swap_maps(const helix::ModePalette* old_palette, const helix::ModePalet
  */
 static lv_obj_tree_walk_res_t refresh_style_cb(lv_obj_t* obj, void* user_data) {
     (void)user_data;
-    // Force LVGL to recalculate all style properties for this widget
     lv_obj_refresh_style(obj, LV_PART_ANY, LV_STYLE_PROP_ANY);
     return LV_OBJ_TREE_WALK_NEXT;
 }
@@ -168,7 +167,6 @@ void theme_manager_refresh_widget_tree(lv_obj_t* root) {
     if (!root)
         return;
 
-    // Walk entire tree and refresh each widget's styles
     lv_obj_tree_walk(root, refresh_style_cb, nullptr);
 }
 
@@ -192,22 +190,17 @@ static void apply_button_text_contrast(lv_obj_t* btn) {
     if (!btn)
         return;
 
-    // Get button's background color and pick a readable foreground for it
     lv_color_t bg_color = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
     lv_color_t current_text = theme_manager_get_color("text");
     lv_color_t text_color = theme_manager_get_contrast_adjusted_text(current_text, bg_color);
 
-    // Check for disabled state - use muted color
     bool btn_disabled = lv_obj_has_state(btn, LV_STATE_DISABLED);
     if (btn_disabled) {
-        // Blend toward gray for disabled state
         text_color = lv_color_mix(text_color, lv_color_hex(0x888888), 128);
     }
 
-    // Get current muted color to detect text/muted-variant icons
     lv_color_t current_muted = theme_manager_get_color("text_muted");
 
-    // Also check contrast text from both palettes for icon detection
     auto& tm = ThemeManager::instance();
     lv_color_t dark_text = tm.dark_palette().text;
     lv_color_t light_text = tm.light_palette().text;
@@ -230,13 +223,11 @@ static void apply_button_text_contrast(lv_obj_t* btn) {
         if (lv_obj_check_type(child, &lv_label_class)) {
             const lv_font_t* font = lv_obj_get_style_text_font(child, LV_PART_MAIN);
             if (helix::ui::is_icon_font(font)) {
-                // Icon: only apply contrast if it's using text/muted variant
                 lv_color_t icon_color = lv_obj_get_style_text_color(child, LV_PART_MAIN);
                 if (is_text_variant_color(icon_color)) {
                     set_palette_color(child, LV_STYLE_TEXT_COLOR, text_color, LV_PART_MAIN);
                 }
             } else {
-                // Regular label: use muted color for muted-style fonts, contrast for others
                 const lv_font_t* font = lv_obj_get_style_text_font(child, LV_PART_MAIN);
                 set_palette_color(child, LV_STYLE_TEXT_COLOR,
                                   is_muted_text_font(font) ? current_muted : text_color,
@@ -272,7 +263,6 @@ static bool is_muted_text_font(const lv_font_t* font) {
     if (!font)
         return false;
 
-    // Get semantic font pointers for comparison
     static const lv_font_t* font_small = nullptr;
     static const lv_font_t* font_xs = nullptr;
     static const lv_font_t* font_heading = nullptr;
@@ -299,7 +289,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
     if (!obj)
         return;
 
-    // Parse palette colors
     lv_color_t screen_bg = theme_manager_parse_hex_color(palette.screen_bg.c_str());
     lv_color_t overlay_bg = theme_manager_parse_hex_color(palette.overlay_bg.c_str());
     lv_color_t card_bg = theme_manager_parse_hex_color(palette.card_bg.c_str());
@@ -312,7 +301,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
     lv_color_t secondary = theme_manager_parse_hex_color(palette.secondary.c_str());
     lv_color_t tertiary = theme_manager_parse_hex_color(palette.tertiary.c_str());
 
-    // Compute knob color: brighter of primary vs tertiary
     lv_color_t knob_color = theme_compute_more_saturated(primary, tertiary);
 
     // ==========================================================================
@@ -329,7 +317,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
             return;
         }
 
-        // Labels inside buttons get auto-contrast based on button background
         lv_obj_t* parent = lv_obj_get_parent(obj);
         if (parent && lv_obj_check_type(parent, &lv_button_class)) {
             // Button text - contrast is handled by apply_button_text_contrast on parent
@@ -351,7 +338,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
             }
         }
 
-        // Small/heading fonts get muted color, body fonts get primary
         if (is_muted_text_font(font)) {
             set_palette_color(obj, LV_STYLE_TEXT_COLOR, text_muted, LV_PART_MAIN);
         } else {
@@ -364,7 +350,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
     // BUTTONS - background, border, and text contrast
     // ==========================================================================
     if (lv_obj_check_type(obj, &lv_button_class)) {
-        // Get current button background to check if it's a "neutral" button
         lv_color_t current_bg = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
         uint8_t r = current_bg.red;
         uint8_t g = current_bg.green;
@@ -376,7 +361,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         int min_rgb = std::min({(int)r, (int)g, (int)b});
         int saturation = (max_rgb > 0) ? ((max_rgb - min_rgb) * 255 / max_rgb) : 0;
 
-        // If saturation is low (<30), this is a neutral/gray button - apply elevated_bg
         if (saturation < 30) {
             set_palette_color(obj, LV_STYLE_BG_COLOR, elevated_bg, LV_PART_MAIN);
         }
@@ -390,12 +374,10 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
     // INTERACTIVE WIDGETS - specific styling per widget type
     // ==========================================================================
 
-    // Checkboxes - box border, primary bg when checked, contrast checkmark
     if (lv_obj_check_type(obj, &lv_checkbox_class)) {
         set_palette_color(obj, LV_STYLE_TEXT_COLOR, text_primary, LV_PART_MAIN);
         set_palette_color(obj, LV_STYLE_BORDER_COLOR, border, LV_PART_INDICATOR);
         set_palette_color(obj, LV_STYLE_BG_COLOR, elevated_bg, LV_PART_INDICATOR);
-        // Checked state: primary background with contrasting checkmark
         set_palette_color(obj, LV_STYLE_BG_COLOR, primary, LV_PART_INDICATOR | LV_STATE_CHECKED);
         set_palette_color(obj, LV_STYLE_BORDER_COLOR, primary,
                           LV_PART_INDICATOR | LV_STATE_CHECKED);
@@ -406,7 +388,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         return;
     }
 
-    // Switches - track, indicator, knob
     if (lv_obj_check_type(obj, &lv_switch_class)) {
         set_palette_color(obj, LV_STYLE_BG_COLOR, border, LV_PART_MAIN);
         set_palette_color(obj, LV_STYLE_BG_COLOR, secondary, LV_PART_INDICATOR | LV_STATE_CHECKED);
@@ -416,7 +397,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         return;
     }
 
-    // Sliders - track, indicator, knob
     if (lv_obj_check_type(obj, &lv_slider_class)) {
         set_palette_color(obj, LV_STYLE_BG_COLOR, border, LV_PART_MAIN);
         set_palette_color(obj, LV_STYLE_BG_COLOR, secondary, LV_PART_INDICATOR);
@@ -425,7 +405,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         return;
     }
 
-    // Outlined fields (dropdown, textarea, spinbox) - unfilled, outline, text
     if (lv_obj_check_type(obj, &lv_dropdown_class) || lv_obj_check_type(obj, &lv_textarea_class) ||
         lv_obj_check_type(obj, &lv_spinbox_class)) {
         lv_color_t outline =
@@ -435,7 +414,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         return;
     }
 
-    // Dropdown lists (popup menus)
     if (lv_obj_check_type(obj, &lv_dropdownlist_class)) {
         lv_color_t dropdown_accent = theme_compute_more_saturated(primary, secondary);
         set_palette_color(obj, LV_STYLE_BG_COLOR, elevated_bg, LV_PART_MAIN);
@@ -454,7 +432,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         lv_opa_t bg_opa = lv_obj_get_style_bg_opa(obj, LV_PART_MAIN);
         uint32_t child_count = lv_obj_get_child_count(obj);
 
-        // Divider: thin (<=2px in one dimension), visible bg, no children
         bool is_thin_horizontal = (h <= 2 && w > h * 10);
         bool is_thin_vertical = (w <= 2 && h > w * 10);
         bool is_divider =
@@ -469,7 +446,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
     // ==========================================================================
     // CONTAINERS - color-swap map (replaces name-based heuristics)
     // ==========================================================================
-    // Swap bg_color if it matches any old semantic color
     lv_opa_t bg_opa_check = lv_obj_get_style_bg_opa(obj, LV_PART_MAIN);
     if (bg_opa_check > 0 && !bg_swap_map.empty()) {
         lv_color_t current_bg = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
@@ -481,7 +457,6 @@ void theme_apply_palette_to_widget(lv_obj_t* obj, const helix::ModePalette& pale
         }
     }
 
-    // Swap border_color if it matches any old semantic color
     int32_t bw = lv_obj_get_style_border_width(obj, LV_PART_MAIN);
     if (bw > 0 && !border_swap_map.empty()) {
         lv_color_t current_border = lv_obj_get_style_border_color(obj, LV_PART_MAIN);
@@ -498,10 +473,8 @@ void theme_apply_palette_to_tree(lv_obj_t* root, const helix::ModePalette& palet
     if (!root)
         return;
 
-    // Apply to this widget
     theme_apply_palette_to_widget(root, palette);
 
-    // Recurse into children
     uint32_t child_count = lv_obj_get_child_count(root);
     for (uint32_t i = 0; i < child_count; i++) {
         lv_obj_t* child = lv_obj_get_child(root, i);
@@ -521,7 +494,6 @@ void theme_apply_palette_to_screen_dropdowns(const helix::ModePalette& palette) 
     // Use more saturated of primary/secondary for highlight (avoids white/gray primaries)
     lv_color_t dropdown_accent = theme_compute_more_saturated(primary, secondary);
 
-    // Text color for selected based on accent luminance
     uint8_t lum = lv_color_luminance(dropdown_accent);
     lv_color_t selected_text = (lum > 140) ? lv_color_black() : lv_color_white();
 
@@ -531,7 +503,6 @@ void theme_apply_palette_to_screen_dropdowns(const helix::ModePalette& palette) 
     for (uint32_t i = 0; i < child_count; i++) {
         lv_obj_t* child = lv_obj_get_child(screen, i);
 
-        // Dropdown lists get special treatment for selection highlighting
         if (lv_obj_check_type(child, &lv_dropdownlist_class)) {
             set_palette_color(child, LV_STYLE_BG_COLOR, elevated_bg, LV_PART_MAIN);
             lv_obj_set_style_bg_opa(child, LV_OPA_COVER, LV_PART_MAIN);
@@ -550,7 +521,6 @@ void theme_apply_palette_to_screen_dropdowns(const helix::ModePalette& palette) 
             continue;
         }
 
-        // Apply palette to this popup and all its children
         spdlog::debug("[Theme] Applying palette to screen popup: {}", name ? name : "(unnamed)");
         theme_apply_palette_to_tree(child, palette);
     }

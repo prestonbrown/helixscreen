@@ -85,7 +85,6 @@ static void arc_anim_start_angle(void* obj, int32_t value) {
         if (cur_sweep > max_sweep)
             max_sweep = cur_sweep;
 
-        // Log every 8 frames with min/max tracking
         if (counter++ % 8 == 0) {
             spdlog::info("[SPIN] start={:3d} end={:3d} sweep={:3d} [range: {:3d}-{:3d}]", value,
                          g_last_end % 360, cur_sweep, min_sweep, max_sweep);
@@ -248,13 +247,11 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
     // Create arc directly (not lv_spinner) for custom animation control
     lv_obj_t* arc = lv_arc_create(parent);
 
-    // Parse size attribute (default: lg)
     const char* size_str = lv_xml_get_value_of(attrs, "size");
     if (!size_str) {
         size_str = "lg";
     }
 
-    // Get responsive size and arc width from tokens
     int32_t size = 64;
     int32_t arc_width = 4;
 
@@ -272,7 +269,6 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
         arc_width = get_responsive_px("spinner_arc_lg", 4);
     }
 
-    // Configure arc appearance
     lv_obj_set_size(arc, size, size);
     lv_obj_set_clickable(arc, false);
     lv_arc_set_bg_angles(arc, 0, 360); // Full circle background (hidden)
@@ -301,7 +297,6 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
         lv_obj_add_event_cb(arc, spinner_draw_cb, LV_EVENT_DRAW_MAIN_BEGIN, nullptr);
     }
 
-    // Register cleanup callback to stop animations when spinner is deleted
     lv_obj_add_event_cb(arc, spinner_delete_cb, LV_EVENT_DELETE, nullptr);
 
     spdlog::trace("[ui_spinner] Created Material spinner size='{}' ({}px, arc={}px)", size_str,
