@@ -102,6 +102,9 @@ class Scope:
     # True: only what `git ls-files` names, tracked or untracked and not ignored.
     # False: every file on disk.
     listed_by_git: bool = False
+    # True: over the working tree, each directory's files sorted by path. False:
+    # the walk's order, one suffix at a time.
+    sorted_by_path: bool = False
 
 
 # src/ and include/, the C++ the app compiles.
@@ -179,6 +182,8 @@ def scope_files(root: Path, scope: Scope) -> list[Path]:
             text=True,
         )
         paths = [root / f for f in listing.split("\0") if f.endswith(scope.suffixes)]
+    elif scope.sorted_by_path:
+        paths = [p for d in scope.dirs for p in sorted((root / d).rglob("*")) if p.suffix in scope.suffixes]
     else:
         paths = [p for d in scope.dirs for s in scope.suffixes for p in (root / d).rglob("*" + s)]
     if scope.skip:
@@ -873,7 +878,7 @@ GETENV_ROOTS = (
     "ui_xml",
 )
 GETENV_SUFFIXES = (".cpp", ".h", ".cc", ".hpp", ".c")
-GETENV_SCOPE = Scope(GETENV_ROOTS, GETENV_SUFFIXES)
+GETENV_SCOPE = Scope(GETENV_ROOTS, GETENV_SUFFIXES, sorted_by_path=True)
 
 # West-const, east-const and pointer-const spellings of a char pointer's
 # declaration; (?!=) keeps == comparisons out.
@@ -1177,6 +1182,7 @@ SUBJECT_SCOPE = Scope(
     ("src", "include", "tests", "firmware"),
     (".c", ".cc", ".cpp", ".h", ".hpp", ".inc"),
     skip=("build", "managed_components"),
+    sorted_by_path=True,
 )
 SUBJECT_API_OK = "SUBJECT_API_OK:"
 

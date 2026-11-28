@@ -143,6 +143,17 @@ CPP
     contains "src/core/subject.cpp:1: call" "$output"
 }
 
+@test "a run over the tree lists sites sorted by path, directory by directory" {
+    # A .cpp before a .h is the order a walk takes one suffix at a time; the
+    # listing is by path, and src/ comes before include/ whatever the names.
+    printf 'lv_subject_t in_cpp_;\n' > "$ROOT/src/b.cpp"
+    printf 'lv_subject_t in_h_;\n' > "$ROOT/src/a.h"
+    printf 'lv_subject_t later_;\n' > "$ROOT/include/a.h"
+    run_gate
+    [ "$status" -eq 1 ] || fail "three sites passed: $output"
+    [[ "$output" == *"src/a.h:1: storage"*"src/b.cpp:1: storage"*"include/a.h:1: storage"* ]]
+}
+
 @test "a tree with no site passes" {
     printf 'helix::Subject count_;\nlv_subject_set_int(&count_, 1);\n' > "$ROOT/src/x.cpp"
     run_gate
