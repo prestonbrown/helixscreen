@@ -61,6 +61,7 @@
 #endif
 
 #ifdef __linux__
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <sys/uio.h> // process_vm_readv() for fault-free stack reads
 #endif
@@ -648,6 +649,83 @@ static int fp_walk_backtrace(int fd, uintptr_t initial_fp, uintptr_t sp, uintptr
 #endif
 }
 
+/// load_base:, text_start: and text_end: lines, which resolve the bt: frames
+/// under ASLR. Written whenever detection ran, so a resolver can tell "load_base
+/// is 0" (non-PIE) from "not detected". Async-signal-safe.
+static void write_load_base_lines(int fd) {
+    char hex_buf[32];
+    if (s_load_base_detected) {
+        safe_write(fd, "load_base:");
+        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_load_base));
+        safe_write(fd, "\n");
+    }
+    if (s_text_start != 0) {
+        safe_write(fd, "text_start:");
+        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_text_start));
+        safe_write(fd, "\n");
+        safe_write(fd, "text_end:");
+        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_text_end));
+        safe_write(fd, "\n");
+    }
+}
+
+/// /proc/self/maps as map: lines, so a resolver can tell the binary's frames
+/// from shared libraries'. Not formally async-signal-safe, but /proc is a
+/// kernel pseudo-filesystem that touches no userspace state; Chromium and
+/// Firefox crash handlers read it the same way.
+static void write_exec_maps(int fd) {
+#ifdef __linux__
+    {
+        int maps_fd = open("/proc/self/maps", O_RDONLY);
+        if (maps_fd >= 0) {
+            // Read in chunks and write executable mappings as "map:" lines.
+            // /proc/self/maps is typically 2-8 KB. We use a static buffer to
+            // avoid any heap allocation in the signal handler.
+            static char maps_buf[8192];
+            ssize_t n;
+            while ((n = read(maps_fd, maps_buf, sizeof(maps_buf) - 1)) > 0) {
+                maps_buf[n] = '\0';
+                char* line_start = maps_buf;
+                for (ssize_t i = 0; i < n; ++i) {
+                    if (maps_buf[i] == '\n') {
+                        maps_buf[i] = '\0';
+                        safe_write(fd, "map:");
+                        safe_write(fd, line_start);
+                        safe_write(fd, "\n");
+                        line_start = maps_buf + i + 1;
+                    }
+                }
+                if (line_start < maps_buf + n) {
+                    safe_write(fd, "map:");
+                    safe_write(fd, line_start);
+                    safe_write(fd, "\n");
+                }
+            }
+            close(maps_fd);
+        }
+    }
+#else
+    (void)fd;
+#endif
+}
+
+#ifdef HAVE_BACKTRACE
+/// bt: lines from glibc's unwinder. Callers run it last: libgcc's DWARF
+/// unwinder can itself fault on a corrupted heap (#827), so everything written
+/// before it survives a nested crash.
+static void write_unwound_backtrace(int fd) {
+    char hex_buf[32];
+    void* frames[64];
+    int frame_count = backtrace(frames, 64);
+    for (int i = 0; i < frame_count; ++i) {
+        safe_write(fd, "bt:");
+        safe_write(fd,
+                   ptr_to_hex(hex_buf, sizeof(hex_buf), reinterpret_cast<uintptr_t>(frames[i])));
+        safe_write(fd, "\n");
+    }
+}
+#endif
+
 /// The signal handler itself -- async-signal-safe ONLY
 static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // If write_exception_record already laid down a crash file (e.g. the
@@ -929,20 +1007,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // Always write when detection ran so resolvers can distinguish
     // "load_base is 0" (non-PIE / static-PIE with dl_iterate_phdr) from
     // "load_base not detected" (detection never ran)
-    if (s_load_base_detected) {
-        safe_write(fd, "load_base:");
-        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_load_base));
-        safe_write(fd, "\n");
-    }
-
-    if (s_text_start != 0) {
-        safe_write(fd, "text_start:");
-        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_text_start));
-        safe_write(fd, "\n");
-        safe_write(fd, "text_end:");
-        safe_write(fd, ptr_to_hex(hex_buf, sizeof(hex_buf), s_text_end));
-        safe_write(fd, "\n");
-    }
+    write_load_base_lines(fd);
 
     // Write UpdateQueue callback tag if a queued callback was executing.
     // The volatile qualifier ensures the signal handler reads the current value,
@@ -1267,40 +1332,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     }
 #endif
 
-    // Dump /proc/self/maps so we can distinguish binary vs shared library frames.
-    // Not formally async-signal-safe, but /proc is a kernel pseudo-filesystem that
-    // doesn't involve userspace state. Widely used in crash handlers (Chromium, Firefox).
-#ifdef __linux__
-    {
-        int maps_fd = open("/proc/self/maps", O_RDONLY);
-        if (maps_fd >= 0) {
-            // Read in chunks and write executable mappings as "map:" lines.
-            // /proc/self/maps is typically 2-8 KB. We use a static buffer to
-            // avoid any heap allocation in the signal handler.
-            static char maps_buf[8192];
-            ssize_t n;
-            while ((n = read(maps_fd, maps_buf, sizeof(maps_buf) - 1)) > 0) {
-                maps_buf[n] = '\0';
-                char* line_start = maps_buf;
-                for (ssize_t i = 0; i < n; ++i) {
-                    if (maps_buf[i] == '\n') {
-                        maps_buf[i] = '\0';
-                        safe_write(fd, "map:");
-                        safe_write(fd, line_start);
-                        safe_write(fd, "\n");
-                        line_start = maps_buf + i + 1;
-                    }
-                }
-                if (line_start < maps_buf + n) {
-                    safe_write(fd, "map:");
-                    safe_write(fd, line_start);
-                    safe_write(fd, "\n");
-                }
-            }
-            close(maps_fd);
-        }
-    }
-#endif
+    write_exec_maps(fd);
 
     // backtrace() runs LAST because libgcc's DWARF unwinder can itself crash
     // when the heap is corrupted, truncating the handler at this point (#827).
@@ -1309,16 +1341,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // lose them. Frames here may duplicate the FP-walk entries, which is fine —
     // downstream symbolization deduplicates.
 #ifdef HAVE_BACKTRACE
-    {
-        void* frames[64];
-        int frame_count = backtrace(frames, 64);
-        for (int i = 0; i < frame_count; ++i) {
-            safe_write(fd, "bt:");
-            safe_write(
-                fd, ptr_to_hex(hex_buf, sizeof(hex_buf), reinterpret_cast<uintptr_t>(frames[i])));
-            safe_write(fd, "\n");
-        }
-    }
+    write_unwound_backtrace(fd);
 #elif defined(HAVE_ANDROID_LOG)
     __android_log_print(ANDROID_LOG_FATAL, "HelixScreen", "CRASH: signal %d", sig);
 #endif
@@ -1834,10 +1857,29 @@ void crash_handler::write_exception_record(const char* what) noexcept {
         safe_write(fd, "\n");
     }
 
-    // Dump breadcrumbs — same context the signal handler emits, lets the
-    // resolver localize the throw site even though backtrace() would be useless
-    // here (the C++ unwinder has already collapsed the original throw frame).
+    // The throwing thread's name: std::terminate runs on the thread whose
+    // exception escaped, so a worker's throw names the worker.
+#ifdef __linux__
+    char thread_name[17] = {};
+    if (prctl(PR_GET_NAME, thread_name, 0, 0, 0) == 0 && thread_name[0] != '\0') {
+        safe_write(fd, "thread:");
+        safe_write(fd, thread_name);
+        safe_write(fd, "\n");
+    }
+#endif
+
+    // Breadcrumbs: the same context the signal handler emits.
     crash_handler::breadcrumb::dump_to_fd(fd);
+
+    // Frames. From std::terminate (a throw nothing caught, on any thread) the
+    // stack is not yet unwound, so they name the throw site. From main()'s
+    // catch it is, and they end at main(); the thread: line still tells the
+    // two apart.
+    write_load_base_lines(fd);
+    write_exec_maps(fd);
+#ifdef HAVE_BACKTRACE
+    write_unwound_backtrace(fd);
+#endif
 
     close(fd);
 }
@@ -1965,6 +2007,8 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 result["abort_msg_state"] = value;
             } else if (key == "terminate_msg") {
                 result["terminate_msg"] = value;
+            } else if (key == "thread") {
+                result["thread"] = value;
             } else if (key.rfind("recent_error", 0) == 0) {
                 // recent_error / recent_error2 / ... — distinct labeled keys
                 // (newest first), collected into one ordered array.
