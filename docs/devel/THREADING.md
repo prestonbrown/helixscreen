@@ -536,7 +536,8 @@ reason.
 
 Every subject is a `helix::Subject` (`include/core/subject.h`), never an `lv_subject_t` held by
 value, and is set up through `init_*()`, never `lv_subject_init_*()` / `lv_subject_deinit()`, which
-LVGL 9.6 deprecates. `scripts/check_lvgl_subject_api.py` (`qc_lvgl_subject_api`) fails any site;
+LVGL 9.6 deprecates. The `lvgl-subject-api` rule of `scripts/check_source_rules.py`
+(`qc_lvgl_subject_api`) fails any site;
 a test pinning LVGL's own subject API takes `SUBJECT_API_OK: <reason>`.
 
 A `Subject` owns one `lv_subject_create()` node whose **address never changes** for the life of

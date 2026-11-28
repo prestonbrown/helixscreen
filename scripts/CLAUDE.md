@@ -153,7 +153,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_printer_images.py` | Fail on a printer image the database names but the disk lacks |
 | `check_pytest_asyncio_deps.py` | Fail on async pytest tests that would be skipped or fail without pytest-asyncio |
 | `check_modal_chrome_budget.py` | Fail if a modal's chrome does not match the content cap it budgets against |
-| `check_source_rules.py` | One table of C++ shape rules the compiler accepts and no unit test reaches. `section-returns`, `init-list-ternary` and `getenv-setenv` run as `lint_<name>` functions of `code_lint.sh`; `xml-create-registered` runs as `qc_xml_create_registered` |
+| `check_source_rules.py` | One table of C++ shape rules the compiler accepts and no unit test reaches. `section-returns`, `init-list-ternary` and `getenv-setenv` run as `lint_<name>` functions of `code_lint.sh`; `xml-create-registered` as `qc_xml_create_registered`; `lvgl-subject-api` as `qc_lvgl_subject_api`, on the staged blobs at commit (`--staged-only`) |
 | `check_duplicate_test_names.py` | Fail on two Catch2 TEST_CASEs sharing a name under `tests/`; an `#if`/`#else` pair is one test. Run as `lint_test_case_names_unique` (`qc_test_lint`) |
 | `check_cached_widget_pointers.py` | Ratchet on raw `lv_obj_t*` data members |
 | `check_ams_xml_mirror.py` | Fail if AmsState's re-entry mirror and `init_subjects()` publish different XML names |
@@ -166,7 +166,6 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
 | `check_header_actions.py` | Fail on anything but `header_action` in a header's actions slot, a header_action given a size or color, or one with no `callback=` or `event_cb`; warns past 3 actions or 1 primary, and on both a callback and an event_cb |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
-| `check_lvgl_subject_api.py` | Fail on a deprecated LVGL subject call or a by-value `lv_subject_t`; `helix::Subject` owns subjects |
 | `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers |
 | `check_layering.py` | The layer map; `qc_layering` fails a cleared include pair's return |
 | `code_lint.sh` | The tree-wide code lints too small for a script of their own |

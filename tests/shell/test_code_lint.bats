@@ -1247,6 +1247,21 @@ getenv_pointer_live_across_setenv_files() {
     contains "does not exist" "$output"
 }
 
+@test "the getenv/setenv rule lists its own scan roots sorted by path" {
+    # Without FILE arguments the rule walks the roots it names, and the sites
+    # come out by path, not one suffix at a time.
+    local root="${BATS_TEST_TMPDIR}/roots" d
+    for d in tests src include tools firmware android server moonraker-plugin ui_xml; do
+        mkdir -p "$root/$d"
+        printf 'int base;\n' > "$root/$d/base.cpp"
+    done
+    printf 'void f() {\n    const char* p = getenv("A");\n    setenv("A", "b", 1);\n    use(p);\n}\n' > "$root/tests/b.cpp"
+    printf 'void g() {\n    const char* q = getenv("A");\n    setenv("A", "b", 1);\n    use(q);\n}\n' > "$root/tests/a.h"
+    run python3 scripts/check_source_rules.py --rule getenv-setenv --root "$root"
+    [ "$status" -eq 1 ] || fail "two stale pointers passed: $output"
+    [[ "$output" == *"tests/a.h:2:"*"tests/b.cpp:2:"* ]]
+}
+
 @test "the getenv/setenv gate fires on a pointer restored after a setenv" {
     # Meta-test: a gate that cannot fail is not a gate.
     local d="${BATS_TEST_TMPDIR}/stale"
