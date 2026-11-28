@@ -115,7 +115,6 @@ bool PinEntryModal::create() {
         lv_label_set_text(heading_lbl, heading_.c_str());
     }
 
-    // Reset state
     clear_digits();
 
     open_pads().add(this);

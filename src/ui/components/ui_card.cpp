@@ -48,7 +48,6 @@ static void* ui_card_xml_create(lv_xml_parser_state_t* state, const char** attrs
     lv_obj_add_style(obj, ThemeManager::instance().get_style(StyleRole::CardPressed),
                      LV_PART_MAIN | LV_STATE_PRESSED);
 
-    // Disabled state: 50% opacity for visual feedback
     lv_obj_set_style_opa(obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DISABLED);
 
     // Disable scrolling (cards are fixed containers, not scroll areas)
@@ -57,7 +56,6 @@ static void* ui_card_xml_create(lv_xml_parser_state_t* state, const char** attrs
     // Shadow: 0 (no shadow by default - can be overridden in XML)
     lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN);
 
-    // Padding: responsive via space_md token
     int32_t padding = theme_manager_get_spacing("space_md");
     lv_obj_set_style_pad_all(obj, padding, LV_PART_MAIN);
     lv_obj_set_style_pad_gap(obj, padding, LV_PART_MAIN);

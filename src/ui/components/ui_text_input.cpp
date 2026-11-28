@@ -158,7 +158,6 @@ static void clear_btn_clicked_cb(lv_event_t* e) {
 
     lv_textarea_set_text(textarea, "");
 
-    // Hide the clear button
     lv_obj_set_hidden(clear_btn, true);
 
     // Fire the optional clear callback directly (stored as user_data on the clear button).
@@ -180,13 +179,11 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
     lv_obj_t* btn = lv_label_create(textarea);
     lv_obj_set_name(btn, "text_input_clear_btn");
 
-    // Set the close-circle icon glyph
     const char* glyph = helix::ui::icon::lookup_codepoint("close_circle");
     if (glyph) {
         lv_label_set_text(btn, glyph);
     }
 
-    // Use 24px MDI icon font
     lv_obj_set_style_text_font(btn, &mdi_icons_24, 0);
 
     // Match the textarea's own text color so it looks natural
@@ -208,7 +205,6 @@ static lv_obj_t* create_clear_button(lv_obj_t* textarea) {
     // Push the icon back into the padding zone so it sits near the widget's right edge.
     lv_obj_align(btn, LV_ALIGN_RIGHT_MID, extra_pad, 0);
 
-    // Click handler
     lv_obj_add_event_cb(btn, clear_btn_clicked_cb, LV_EVENT_CLICKED, nullptr);
 
     spdlog::trace("[text_input] Created clear button");
@@ -329,7 +325,6 @@ static void* ui_text_input_create(lv_xml_parser_state_t* state, const char** att
     // One-line mode by default for form inputs
     lv_textarea_set_one_line(textarea, true);
 
-    // Set default keyboard hint (TEXT) via user_data magic value
     lv_obj_set_user_data(
         textarea,
         reinterpret_cast<void*>(kTextInputMagic | static_cast<uintptr_t>(KeyboardHint::TEXT)));
@@ -368,19 +363,16 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
         }
     }
 
-    // Apply standard textarea properties (handles height, width, etc.)
     lv_xml_textarea_apply(state, attrs);
     if (lv_textarea_get_password_mode(textarea)) {
         helix::ui::mark_secret_field(textarea);
     }
 
-    // Track clear button and suffix settings from attrs
     bool show_clear = false;
     const char* clear_callback_name = nullptr;
     const char* suffix_text = nullptr;
     lv_subject_t* suffix_subject = nullptr;
 
-    // Then handle our custom attributes
     for (int i = 0; attrs[i]; i += 2) {
         const char* name = attrs[i];
         const char* value = attrs[i + 1];
@@ -445,7 +437,6 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
     if (show_clear) {
         lv_obj_t* clear_btn = create_clear_button(textarea);
 
-        // If a clear_callback was specified, look up the registered XML event callback
         if (clear_callback_name) {
             lv_event_cb_t cb = lv_xml_get_event_cb(nullptr, clear_callback_name);
             if (cb) {
@@ -455,7 +446,6 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
             }
         }
 
-        // Add value_changed handler to toggle clear button visibility
         lv_obj_add_event_cb(textarea, clear_btn_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
     }
 

@@ -46,7 +46,6 @@ enum class TextStyleType {
  * @param font_const_name Name of font constant in globals.xml (e.g., "font_heading")
  */
 static void apply_semantic_font(lv_obj_t* label, const char* font_const_name) {
-    // Apply font - FAIL FAST if font is not available
     const char* font_name = lv_xml_get_const(nullptr, font_const_name);
     if (!font_name) {
         spdlog::critical("[ui_text] FATAL: Font constant '{}' not found in globals.xml",
@@ -57,7 +56,6 @@ static void apply_semantic_font(lv_obj_t* label, const char* font_const_name) {
 
     const lv_font_t* font = lv_xml_get_font(nullptr, font_name);
     if (!font) {
-        // Extract font size from name like "montserrat_26" -> "26"
         std::string font_str(font_name);
         std::string size_hint;
         size_t underscore = font_str.rfind('_');
@@ -75,7 +73,6 @@ static void apply_semantic_font(lv_obj_t* label, const char* font_const_name) {
 
     helix::ui::apply_font_style(label, font);
 
-    // Debug: log the actual font being applied
     spdlog::trace("[ui_text] Applied font '{}' (from '{}') - line_height={}px", font_name,
                   font_const_name, lv_font_get_line_height(font));
 }
@@ -136,12 +133,10 @@ static void apply_stroke_attrs(lv_obj_t* label, const char** attrs) {
         int32_t width = lv_xml_atoi(stroke_width);
         lv_obj_set_style_text_outline_stroke_width(label, width, 0);
 
-        // Default to full opacity if width is set but opacity is not
         if (!stroke_opa) {
             lv_obj_set_style_text_outline_stroke_opa(label, LV_OPA_COVER, 0);
         }
 
-        // Default to black stroke if width is set but color is not
         if (!stroke_color) {
             lv_obj_set_style_text_outline_stroke_color(label, lv_color_black(), 0);
         }
@@ -366,7 +361,6 @@ static void cap_lines_if_dotted(lv_obj_t* label, int32_t lines) {
 }
 
 static void ui_text_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // Apply label properties (text, long_mode, etc.) and base object properties
     lv_xml_label_apply(state, attrs);
 
     lv_obj_t* label = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
@@ -378,7 +372,6 @@ static void ui_text_apply(lv_xml_parser_state_t* state, const char** attrs) {
     // to N lines first, and without it the label holds to one.
     cap_lines_if_dotted(label, max_lines_attr(attrs));
 
-    // Apply stroke attributes (stroke_width, stroke_color, stroke_opa)
     apply_stroke_attrs(label, attrs);
 
     // Apply text transform (uppercase) — works with bind_text and translations
@@ -437,7 +430,6 @@ static void* ui_text_xs_create(lv_xml_parser_state_t* state, const char** attrs)
 static void* ui_text_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* label = create_semantic_label(state, attrs, "font_body", TextStyleType::PRIMARY);
     if (label) {
-        // Center the label within its parent (the button)
         lv_obj_set_align(label, LV_ALIGN_CENTER);
         // Also set text alignment for multi-line button labels
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -450,7 +442,6 @@ static void* ui_text_button_create(lv_xml_parser_state_t* state, const char** at
         lv_obj_set_style_text_color(label, lv_color_hex(rgb), 0);
     }
 
-    // Center the label within its parent (the button)
     lv_obj_set_align(label, LV_ALIGN_CENTER);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
 
@@ -488,7 +479,6 @@ static void ui_text_button_apply(lv_xml_parser_state_t* state, const char** attr
     lv_color_t bg_color = lv_obj_get_style_bg_color(parent, LV_PART_MAIN);
     lv_opa_t bg_opa = lv_obj_get_style_bg_opa(parent, LV_PART_MAIN);
 
-    // Only apply auto-contrast if parent has a visible background
     if (bg_opa > LV_OPA_50) {
         // The parent is a filled button, so its colour is an accent; the label
         // starts from the palette text colour and shifts only as far as needed

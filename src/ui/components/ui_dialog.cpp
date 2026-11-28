@@ -41,16 +41,13 @@ static void* ui_dialog_xml_create(lv_xml_parser_state_t* state, const char** att
         spdlog::warn("[Dialog] dialog_style is NULL - ThemeManager not initialized?");
     }
 
-    // Disabled state: 50% opacity for visual feedback
     lv_obj_set_style_opa(obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DISABLED);
 
     // No padding by default (dividers/buttons go edge-to-edge)
     lv_obj_set_style_pad_all(obj, 0, LV_PART_MAIN);
 
-    // No border by default
     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN);
 
-    // No shadow by default
     lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN);
 
     // Clip children to rounded corners (for full-bleed buttons at bottom)

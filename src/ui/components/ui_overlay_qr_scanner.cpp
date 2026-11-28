@@ -119,7 +119,6 @@ lv_obj_t* QrScannerOverlay::create(lv_obj_t* parent) {
     viewfinder_ = helix::ui::find_required(overlay_root_, "viewfinder", get_name());
     success_flash_ = helix::ui::find_required(overlay_root_, "success_flash", get_name());
 
-    // Scale camera frames to cover the viewfinder area
     if (viewfinder_) {
         lv_image_set_inner_align(viewfinder_, LV_IMAGE_ALIGN_COVER);
     }
@@ -218,7 +217,6 @@ void QrScannerOverlay::on_deactivating(DeactivateReason reason) {
     stop_scanning();
     snapshot_scanner_.reset();
 
-    // Cancel pending timers
     delete_timer_with_data<SuccessTimerData>(success_timer_);
     delete_timer_with_data<TimeoutTimerData>(timeout_timer_);
 
@@ -253,7 +251,6 @@ void QrScannerOverlay::start_scanning() {
     // keystrokes trigger unintended UI navigation.
     disable_lvgl_keyboards(true);
 
-    // Start USB barcode scanner monitor
     auto tok_usb = lifetime_.token();
     usb_monitor_.start([this, tok_usb](int spool_id) {
         tok_usb.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
@@ -286,7 +283,6 @@ void QrScannerOverlay::start_camera() {
     }
 
 #if HELIX_HAS_CAMERA
-    // Start camera if webcam URL is available
     std::string stream_url, snapshot_url;
     if (camera_->configure_from_printer(stream_url, snapshot_url)) {
         decode_busy_ = false;
@@ -318,7 +314,6 @@ void QrScannerOverlay::start_camera() {
             });
         spdlog::info("[{}] Camera started: stream={}", get_name(), stream_url);
     } else {
-        // Camera stream not available — try snapshot fallback
         if (!snapshot_url.empty()) {
             snapshot_scanner_ = std::make_unique<helix::SnapshotQrScanner>();
             auto snap_tok = lifetime_.token();
@@ -340,7 +335,6 @@ void QrScannerOverlay::start_camera() {
         }
     }
 #else
-    // No compiled camera support — try snapshot polling as fallback
     {
         auto& state = get_printer_state();
         std::string snapshot_url = state.capabilities_state().get_webcam_snapshot_url();
@@ -405,7 +399,6 @@ void QrScannerOverlay::stop_scanning() {
         usb_monitor_.stop();
     }
 
-    // Re-enable LVGL keyboard input
     disable_lvgl_keyboards(false);
 
     spdlog::debug("[QR Scanner] Scanning stopped");
@@ -562,12 +555,10 @@ void QrScannerOverlay::on_spool_found(const SpoolInfo& spool) {
         lv_image_set_src(viewfinder_, nullptr);
     }
 
-    // Stop scanning immediately
     stop_scanning();
 
     SoundManager::instance().play("print_complete");
 
-    // Show success flash
     show_success_flash();
 
     // Fire result callback and close after a brief delay
@@ -598,7 +589,6 @@ void QrScannerOverlay::on_spool_found(const SpoolInfo& spool) {
 }
 
 void QrScannerOverlay::show_success_flash() {
-    // Show the flash overlay
     lv_subject_set_int(&success_subject_, 1);
 
     if (!success_flash_)
@@ -621,7 +611,6 @@ void QrScannerOverlay::show_success_flash() {
 }
 
 void QrScannerOverlay::update_status(const std::string& text) {
-    // Set the string subject for XML binding
     lv_subject_set_string(&status_subject_, text.c_str());
     spdlog::debug("[{}] Status: {}", get_name(), text);
 }

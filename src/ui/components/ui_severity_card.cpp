@@ -64,7 +64,6 @@ static void severity_card_xml_apply(lv_xml_parser_state_t* state, const char** a
         return;
     }
 
-    // Extract severity attribute from attrs
     const char* severity = "info"; // default
     for (int i = 0; attrs[i]; i += 2) {
         if (strcmp(attrs[i], "severity") == 0) {
@@ -123,7 +122,6 @@ void ui_severity_card_finalize(lv_obj_t* obj) {
         icon_name = "icon_info"; // Default to info
     }
 
-    // Find and unhide the correct icon
     lv_obj_t* icon = lv_obj_find_by_name(obj, icon_name);
     if (icon) {
         lv_obj_set_hidden(icon, false);

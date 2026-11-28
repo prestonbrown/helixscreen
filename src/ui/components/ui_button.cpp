@@ -375,15 +375,12 @@ void update_button_text_contrast(lv_obj_t* btn) {
     lv_opa_t bg_opa = lv_obj_get_style_bg_opa(btn, LV_PART_MAIN);
     bool is_ghost = bg_opa < LV_OPA_50;
 
-    // Determine text color based on button type
     lv_color_t text_color;
     if (const auto authored = authored_text_color(btn)) {
         text_color = *authored;
     } else if (is_ghost) {
-        // Ghost/transparent button - use theme text color
         text_color = theme_manager_get_color("text");
     } else {
-        // Solid button - calculate contrast against effective background
         lv_color_t bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
         // Disabled buttons render at 50% opacity, so blend with screen bg
@@ -621,10 +618,8 @@ lv_obj_t* create_button_icon(lv_obj_t* btn, const char* icon_name,
         return nullptr;
     }
 
-    // Lookup icon codepoint
     const char* codepoint = helix::ui::icon::lookup_codepoint(icon_name);
     if (!codepoint) {
-        // Try stripping legacy prefix
         const char* stripped = helix::ui::icon::strip_legacy_prefix(icon_name);
         if (stripped != icon_name) {
             codepoint = helix::ui::icon::lookup_codepoint(stripped);
@@ -646,7 +641,6 @@ lv_obj_t* create_button_icon(lv_obj_t* btn, const char* icon_name,
         font = resolve_icon_font(const_name);
     }
 
-    // Create icon as lv_label with MDI font
     lv_obj_t* icon = lv_label_create(btn);
     lv_label_set_text(icon, codepoint);
     lv_obj_set_style_text_font(icon, font, LV_PART_MAIN);
@@ -682,7 +676,6 @@ lv_obj_t* create_button_icon(lv_obj_t* btn, const char* icon_name,
 void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
 
-    // Create button with default height from theme system
     lv_obj_t* btn = lv_button_create(parent);
     lv_obj_set_height(btn, theme_manager_get_spacing("button_height"));
 
@@ -697,13 +690,11 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         }
     }
 
-    // Parse variant attribute (default: primary)
     const char* variant_str = lv_xml_get_value_of(attrs, "variant");
     if (!variant_str) {
         variant_str = "primary";
     }
 
-    // Apply shared style based on variant
     auto& tm = ThemeManager::instance();
     lv_style_t* style = nullptr;
     if (strcmp(variant_str, "primary") == 0) {
@@ -743,18 +734,14 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     }
     const char* label_text = text_is_subject ? "" : text;
 
-    // Parse translation_tag attribute for i18n support
     const char* translation_tag = lv_xml_get_value_of(attrs, "translation_tag");
 
-    // Parse icon attribute
     const char* icon_name = lv_xml_get_value_of(attrs, "icon");
     // Optional icon size override: "sm" (default), "md", "lg". Maps to
     // icon_font_<size> in globals.xml so icon-only buttons can scale up
     // on small displays without bumping icon_font_sm globally.
     const char* icon_size = lv_xml_get_value_of(attrs, "icon_size");
 
-    // Parse icon_position attribute (default: left)
-    // Supported values: "left" (default), "right", "top", "bottom"
     const char* icon_pos_str = lv_xml_get_value_of(attrs, "icon_position");
     bool icon_on_right = (icon_pos_str && strcmp(icon_pos_str, "right") == 0);
     bool icon_on_top = (icon_pos_str && strcmp(icon_pos_str, "top") == 0);
@@ -771,7 +758,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         vertical_layout = true;
     }
 
-    // Allocate user data to track icon/label
     UiButtonData* data = new UiButtonData{.magic = UiButtonData::kMagic,
                                           .icon = nullptr,
                                           .label = nullptr,
@@ -786,7 +772,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
 
     if (has_icon && has_text) {
         if (vertical_layout) {
-            // Icon + text: use vertical flex layout (column)
             lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
             lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                                   LV_FLEX_ALIGN_CENTER);
@@ -794,12 +779,10 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
             lv_obj_set_style_pad_row(btn, 0, LV_PART_MAIN);
 
             if (icon_on_bottom) {
-                // Text first, then icon
                 data->label = lv_label_create(btn);
                 lv_label_set_text(data->label, label_text);
                 data->icon = create_button_icon(btn, icon_name, icon_size);
             } else {
-                // Icon first (top), then text
                 data->icon = create_button_icon(btn, icon_name, icon_size);
                 data->label = lv_label_create(btn);
                 lv_label_set_text(data->label, label_text);
@@ -812,26 +795,22 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
                                          LV_PART_MAIN);
             }
         } else {
-            // Icon + text: use horizontal flex layout (row)
             lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
             lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                                   LV_FLEX_ALIGN_CENTER);
             lv_obj_set_style_pad_column(btn, theme_manager_get_spacing("space_xs"), LV_PART_MAIN);
 
             if (icon_on_right) {
-                // Text first, then icon
                 data->label = lv_label_create(btn);
                 lv_label_set_text(data->label, label_text);
                 data->icon = create_button_icon(btn, icon_name, icon_size);
             } else {
-                // Icon first (left), then text
                 data->icon = create_button_icon(btn, icon_name, icon_size);
                 data->label = lv_label_create(btn);
                 lv_label_set_text(data->label, label_text);
             }
         }
     } else if (has_icon) {
-        // Icon only: center the icon, no label needed
         data->icon = create_button_icon(btn, icon_name, icon_size);
         if (data->icon) {
             lv_obj_center(data->icon);
@@ -853,7 +832,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
             data->label = lv_label_create(btn);
             lv_label_set_text(data->label, label_text);
         } else {
-            // Text only without explicit layout: center the label
             data->label = lv_label_create(btn);
             lv_label_set_text(data->label, label_text);
             lv_obj_center(data->label);
@@ -889,7 +867,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
         lv_label_set_translation_tag(data->label, translation_tag);
     }
 
-    // Store user data on button
     lv_obj_set_user_data(btn, data);
     // Track this address as a live ui_button so deferred work can verify the
     // button hasn't been freed and its address reused (#1111).
@@ -900,7 +877,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_add_event_cb(btn, button_clicked_sound_cb, LV_EVENT_CLICKED, nullptr);
     lv_obj_add_event_cb(btn, button_delete_cb, LV_EVENT_DELETE, nullptr);
 
-    // Apply initial text contrast for buttons with text=/icon= attrs
     update_button_text_contrast(btn);
 
     // Defer a second pass for "shell" buttons whose XML children aren't
@@ -952,14 +928,11 @@ void icon_subject_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     // starting with 0xF3 (U+F0000..U+FFFFF range)
     const unsigned char first_byte = static_cast<unsigned char>(icon_value[0]);
     if (first_byte >= 0xF0) {
-        // Value is already a codepoint - use directly
         lv_label_set_text(icon, icon_value);
         spdlog::trace("[ui_button] bind_icon: updated to codepoint");
     } else {
-        // Value is an icon name - look up the codepoint
         const char* codepoint = helix::ui::icon::lookup_codepoint(icon_value);
         if (!codepoint) {
-            // Try stripping legacy prefix
             const char* stripped = helix::ui::icon::strip_legacy_prefix(icon_value);
             if (stripped != icon_value) {
                 codepoint = helix::ui::icon::lookup_codepoint(stripped);
@@ -975,7 +948,6 @@ void icon_subject_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
         }
     }
 
-    // Re-apply text contrast if we have the button reference
     if (btn) {
         update_button_text_contrast(btn);
     }
@@ -1125,7 +1097,6 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
     //   bind_text="subject"  → LVGL-standard attribute, always a subject (no '@' needed)
     // Both paths share the same binding logic below.
 
-    // Determine subject name from text="@..." or bind_text="..."
     const char* subject_name = nullptr;
     const char* fmt_attr = nullptr;
     const char* text_val = lv_xml_get_value_of(attrs, "text");
@@ -1137,7 +1108,6 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
         subject_name = (bind_text_val[0] == '@') ? bind_text_val + 1 : bind_text_val;
         fmt_attr = lv_xml_get_value_of(attrs, "bind_text-fmt");
     } else if (text_val && text_val[0] == '@') {
-        // text="@subject" — strip '@' prefix
         subject_name = text_val + 1;
         fmt_attr = lv_xml_get_value_of(attrs, "text-fmt");
     }
@@ -1182,19 +1152,16 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
         }
     }
 
-    // Handle bind_icon - bind the internal icon to a string subject
     const char* bind_icon = lv_xml_get_value_of(attrs, "bind_icon");
     if (bind_icon && data && data->magic == UiButtonData::kMagic) {
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_icon);
         if (subject) {
-            // If button has no icon yet, create one now
             if (!data->icon) {
                 data->icon = lv_label_create(btn);
                 lv_obj_set_style_text_font(data->icon, get_button_icon_font(), LV_PART_MAIN);
                 // DECLARATIVE_OK: the widget's own icon relays its size (see part_resized_cb)
                 lv_obj_add_event_cb(data->icon, part_resized_cb, LV_EVENT_SIZE_CHANGED, nullptr);
 
-                // Position icon appropriately
                 if (data->label) {
                     // Icon + text: set up flex layout matching the position the
                     // button declared at create time. Mirrors the static-icon
@@ -1218,13 +1185,11 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
                         lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
                         lv_obj_set_style_pad_column(btn, theme_manager_get_spacing("space_xs"),
                                                     LV_PART_MAIN);
-                        // Position icon before or after text based on icon_on_right
                         lv_obj_move_to_index(data->icon, data->icon_on_right ? -1 : 0);
                     }
                     spdlog::trace("[ui_button] bind_icon: created icon with {} flex layout",
                                   data->icon_vertical ? "column" : "row");
                 } else {
-                    // Icon only: center it
                     lv_obj_center(data->icon);
                     spdlog::trace("[ui_button] bind_icon: created centered icon-only");
                 }
@@ -1236,13 +1201,10 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
             if (icon_value && strlen(icon_value) > 0) {
                 const unsigned char first_byte = static_cast<unsigned char>(icon_value[0]);
                 if (first_byte >= 0xF0) {
-                    // Value is already a codepoint - use directly
                     lv_label_set_text(data->icon, icon_value);
                 } else {
-                    // Value is an icon name - look up the codepoint
                     const char* codepoint = helix::ui::icon::lookup_codepoint(icon_value);
                     if (!codepoint) {
-                        // Try stripping legacy prefix
                         const char* stripped = helix::ui::icon::strip_legacy_prefix(icon_value);
                         if (stripped != icon_value) {
                             codepoint = helix::ui::icon::lookup_codepoint(stripped);
@@ -1256,10 +1218,8 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
                 }
             }
 
-            // Add observer to update icon when subject changes
             lv_subject_add_observer_obj(subject, icon_subject_observer_cb, data->icon, btn);
 
-            // Re-apply contrast after adding icon
             update_button_text_contrast(btn);
             spdlog::trace("[ui_button] Bound icon to subject '{}'", bind_icon);
         } else {
@@ -1296,7 +1256,6 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
         }
     }
 
-    // Handle long_mode - set label text truncation mode (dots, clip, scroll, etc.)
     const char* long_mode = lv_xml_get_value_of(attrs, "long_mode");
     if (long_mode && data && data->magic == UiButtonData::kMagic && data->label) {
         lv_label_long_mode_t mode = LV_LABEL_LONG_MODE_WRAP; // default

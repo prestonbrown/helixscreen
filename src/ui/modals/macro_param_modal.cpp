@@ -132,7 +132,6 @@ void MacroParamModal::show_common(lv_obj_t* parent) {
 }
 
 void MacroParamModal::on_show() {
-    // Set subtitle to macro name
     lv_obj_t* subtitle = find_widget("modal_subtitle");
     if (subtitle) {
         lv_label_set_text(subtitle, macro_name_.c_str());
@@ -218,7 +217,6 @@ void MacroParamModal::populate_param_fields() {
     }
 
     for (const auto& param : params_) {
-        // Prettify: lowercase with first letter capitalized
         std::string display_name = param.name;
         display_name = helix::text_io::to_lower(display_name);
         if (!display_name.empty()) {

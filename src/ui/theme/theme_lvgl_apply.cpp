@@ -115,7 +115,6 @@ static void update_handle_styles(const theme_palette_t* palette, int border_radi
     bool bar_knob = (runtime().active_theme.properties.handle_style == "bar");
     int32_t slider_knob_radius = bar_knob ? 2 : LV_RADIUS_CIRCLE;
 
-    // Resolve handle color token to palette color
     lv_color_t knob_color = palette->primary;
     const auto& hc = runtime().active_theme.properties.handle_color;
     if (hc == "text")
@@ -133,7 +132,6 @@ static void update_handle_styles(const theme_palette_t* palette, int border_radi
     lv_style_set_bg_color(&switch_knob_checked_style, knob_color);
     lv_style_set_border_width(&switch_knob_checked_style, 0);
 
-    // Slider track/indicator colors
     lv_style_set_bg_color(&slider_track_style, palette->border);
     lv_style_set_radius(&slider_track_style, border_radius);
     lv_style_set_bg_color(&slider_indicator_style, palette->primary);
@@ -170,7 +168,6 @@ static void update_handle_styles(const theme_palette_t* palette, int border_radi
     lv_style_set_shadow_color(&slider_knob_style, lv_color_black());
     lv_style_set_shadow_opa(&slider_knob_style, static_cast<lv_opa_t>(knob_shadow_opa));
 
-    // Update dropdown accent and other palette-dependent colors
     dropdown_accent_color = palette->secondary;
     lv_style_set_text_color(&checkbox_text_style, palette->text);
     lv_style_set_bg_color(&checkbox_box_style, palette->elevated_bg);
@@ -195,11 +192,9 @@ static void init_extra_styles(const theme_palette_t* palette) {
 
     dropdown_accent_color = palette->secondary;
 
-    // Dropdown indicator - MDI font for chevron
     lv_style_init(&dropdown_indicator_style);
     lv_style_set_text_font(&dropdown_indicator_style, &mdi_icons_24);
 
-    // Checkbox styles
     lv_style_init(&checkbox_text_style);
     lv_style_set_text_color(&checkbox_text_style, palette->text);
 
@@ -222,7 +217,6 @@ static void init_extra_styles(const theme_palette_t* palette) {
     lv_style_set_text_color(&checkbox_indicator_style,
                             (cb_lum > 140) ? lv_color_black() : lv_color_white());
 
-    // Switch styles
     lv_style_init(&switch_track_style);
     lv_style_set_bg_color(&switch_track_style, palette->border);
     lv_style_set_bg_opa(&switch_track_style, LV_OPA_COVER);
@@ -236,7 +230,6 @@ static void init_extra_styles(const theme_palette_t* palette) {
     lv_style_set_radius(&switch_knob_style, LV_RADIUS_CIRCLE);
     lv_style_init(&switch_knob_checked_style);
 
-    // Slider styles
     lv_style_init(&slider_track_style);
     lv_style_set_bg_opa(&slider_track_style, LV_OPA_COVER);
 
@@ -271,7 +264,6 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
 
     auto& tm = ThemeManager::instance();
 
-    // Global disabled state
     lv_obj_add_style(obj, tm.get_style(StyleRole::Disabled), LV_PART_MAIN | LV_STATE_DISABLED);
 
     // Plain lv_obj containers get transparent background (layout containers)
@@ -312,7 +304,6 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
         lv_obj_set_style_bg_color(obj, tm.current_palette().elevated_bg, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
 
-        // Clip highlight rectangles to rounded corners
         lv_obj_set_style_clip_corner(obj, true, LV_PART_MAIN);
 
         // Add responsive line spacing (1x font height) for comfortable touch targets
@@ -322,7 +313,6 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
             lv_obj_set_style_text_line_space(obj, line_space, LV_PART_MAIN);
         }
 
-        // Compute contrast text for dropdown accent
         uint8_t lum = lv_color_luminance(dropdown_accent_color);
         lv_color_t selected_text = (lum > 140) ? lv_color_black() : lv_color_white();
 
@@ -508,7 +498,6 @@ lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palett
                             const lv_font_t* base_font) {
     resync_palette_manager(is_dark);
 
-    // Initialize widget-specific styles not in StyleRole enum
     const auto& props = runtime().active_theme.properties;
     init_extra_styles(palette);
     // Theme- and mode-dependent handle styles refresh on every init, not only the first.
@@ -518,7 +507,6 @@ lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palett
     default_theme_backup =
         lv_theme_default_init(display, palette->primary, palette->secondary, is_dark, base_font);
 
-    // Initialize our custom theme
     lv_theme_set_apply_cb(&helix_theme, helix_theme_apply);
     helix_theme.font_small = base_font;
     helix_theme.font_normal = base_font;
@@ -559,7 +547,6 @@ void theme_update_colors(bool is_dark) {
 
     tm.set_dark_mode(is_dark);
 
-    // Update handle/knob styles from new theme properties and palette
     update_handle_styles(&pair.raw_for(is_dark),
                          resolve_border_radius(runtime().active_theme.properties), is_dark);
     // The handle styles change after the palette reports above, and sliders and switches

@@ -190,7 +190,6 @@ static void apply_source(lv_obj_t* obj, const char* src) {
         lv_label_set_text(obj, codepoint);
         spdlog::trace("[Icon] Set icon '{}' -> codepoint", src);
     } else {
-        // Fallback to broken image icon
         const char* fallback = lookup_codepoint("image_broken_variant");
         if (fallback) {
             lv_label_set_text(obj, fallback);
@@ -211,7 +210,6 @@ static void* ui_icon_xml_create(lv_xml_parser_state_t* state, const char** attrs
     // Apply default size (xl = 64px)
     apply_size(obj, IconSize::XL);
 
-    // Apply default source (broken image icon)
     apply_source(obj, "image_broken_variant");
 
     // Default variant (primary text color)
@@ -296,7 +294,6 @@ static void ui_icon_xml_apply(lv_xml_parser_state_t* state, const char** attrs) 
         apply_size(obj, size);
     }
 
-    // Apply source (sets label text to codepoint)
     if (src) {
         apply_source(obj, src);
     }

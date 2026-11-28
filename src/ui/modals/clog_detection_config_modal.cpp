@@ -111,7 +111,6 @@ void ClogDetectionConfigModal::on_show() {
     if (dialog())
         lv_obj_set_user_data(dialog(), this);
 
-    // Load current config
     auto& wc = helix::PanelWidgetManager::instance().get_widget_config(panel_id_);
     auto config = wc.get_widget_config(widget_id_);
 
@@ -119,7 +118,6 @@ void ClogDetectionConfigModal::on_show() {
     danger_threshold_ = helix::json_util::read_integer_field(config, "danger_threshold")
                             .value_or(danger_threshold_);
 
-    // Read current state from AmsState backend
     auto& ams = helix::AmsState::instance();
     auto* backend = ams.get_backend();
     if (backend) {
@@ -143,7 +141,6 @@ void ClogDetectionConfigModal::on_show() {
     }
     original_detection_mode_ = detection_mode_;
 
-    // Clamp detection length to valid range
     if (detection_length_ < 2.0f)
         detection_length_ = 10.0f;
     if (detection_length_ > 30.0f)
@@ -161,7 +158,6 @@ void ClogDetectionConfigModal::on_show() {
         source_ = 0;
     }
 
-    // Set slider initial values
     auto* slider = helix::ui::find_required(dialog(), "threshold_slider", get_name());
     if (slider)
         lv_slider_set_value(slider, danger_threshold_, LV_ANIM_OFF);

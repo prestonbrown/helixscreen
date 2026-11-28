@@ -32,13 +32,11 @@ namespace helix::theme_detail {
  * based on current theme mode.
  */
 void register_color_pairs(lv_xml_component_scope_t* scope, bool dark_mode) {
-    // Find all color tokens with _light and _dark suffixes from all XML files
     auto light_tokens =
         theme_manager_parse_all_xml_for_suffix(theme_detail::ui_xml_dir(), "color", "_light");
     auto dark_tokens =
         theme_manager_parse_all_xml_for_suffix(theme_detail::ui_xml_dir(), "color", "_dark");
 
-    // For each _light color, check if _dark exists and register base name
     int registered = 0;
     for (const auto& [base_name, light_val] : light_tokens) {
         auto dark_it = dark_tokens.find(base_name);
@@ -119,7 +117,6 @@ void register_static_constants(lv_xml_component_scope_t* scope) {
  */
 void register_semantic_colors(lv_xml_component_scope_t* scope, const helix::ThemeData& theme,
                               bool dark_mode) {
-    // Check which palettes are available
     bool has_dark = theme.supports_dark();
     bool has_light = theme.supports_light();
 
@@ -157,7 +154,6 @@ void register_semantic_colors(lv_xml_component_scope_t* scope, const helix::Them
             lv_xml_set_const(scope, name, current_val.c_str());
         }
 
-        // Register _dark variant if dark palette is available
         if (has_dark) {
             const std::string& dark_val = theme.dark.at(index);
             if (!dark_val.empty()) {
@@ -165,7 +161,6 @@ void register_semantic_colors(lv_xml_component_scope_t* scope, const helix::Them
             }
         }
 
-        // Register _light variant if light palette is available
         if (has_light) {
             const std::string& light_val = theme.light.at(index);
             if (!light_val.empty()) {
@@ -174,7 +169,6 @@ void register_semantic_colors(lv_xml_component_scope_t* scope, const helix::Them
         }
     };
 
-    // Register all 16 semantic colors from ModePalette
     auto& names = helix::ModePalette::color_names();
     for (size_t i = 0; i < 16; ++i) {
         register_color(names[i], i);
@@ -254,14 +248,12 @@ void register_theme_properties(lv_xml_component_scope_t* scope, const helix::The
                                bool dark_mode) {
     char buf[32];
 
-    // Register border_radius and button_radius from size table + current breakpoint
     int32_t resp_res = responsive_dimension(runtime().display);
     const char* suffix = theme_manager_get_breakpoint_suffix(resp_res);
     int radius_px = helix::BorderRadiusSizes::pixels(theme.properties.border_radius_size, suffix);
     snprintf(buf, sizeof(buf), "%d", radius_px);
     lv_xml_register_const(scope, "border_radius", buf);
 
-    // Register border_width
     snprintf(buf, sizeof(buf), "%d", theme.properties.border_width);
     lv_xml_register_const(scope, "border_width", buf);
 
@@ -269,7 +261,6 @@ void register_theme_properties(lv_xml_component_scope_t* scope, const helix::The
     snprintf(buf, sizeof(buf), "%d", theme.properties.border_opacity);
     lv_xml_register_const(scope, "border_opacity", buf);
 
-    // Register shadow properties
     snprintf(buf, sizeof(buf), "%d", theme.properties.shadow_intensity);
     lv_xml_register_const(scope, "shadow_intensity", buf);
 

@@ -84,13 +84,11 @@ void* ui_markdown_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
  * - text: sets static markdown content
  */
 void ui_markdown_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // Apply base object attributes (width, height, align, hidden, etc.)
     lv_xml_obj_apply(state, attrs);
 
     void* item = lv_xml_state_get_item(state);
     lv_obj_t* obj = static_cast<lv_obj_t*>(item);
 
-    // Handle bind_text — bind to a string subject
     const char* bind_text = lv_xml_get_value_of(attrs, "bind_text");
     if (bind_text) {
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_text);
@@ -102,7 +100,6 @@ void ui_markdown_apply(lv_xml_parser_state_t* state, const char** attrs) {
         }
     }
 
-    // Handle static text attribute
     const char* text = lv_xml_get_value_of(attrs, "text");
     if (text) {
         lv_markdown_set_text(obj, text);
@@ -133,7 +130,6 @@ bool ui_markdown_owns_user_data(const lv_obj_t* obj) {
 void ui_markdown_get_theme_style(lv_markdown_style_t& style) {
     lv_markdown_style_init(&style);
 
-    // Body text — responsive body font + theme text color
     style.body_font = theme_manager_get_font("font_body");
     style.body_color = theme_manager_get_color("text");
 
@@ -171,18 +167,15 @@ void ui_markdown_get_theme_style(lv_markdown_style_t& style) {
     style.italic_font = nullptr;
     style.bold_italic_font = nullptr;
 
-    // Inline code — small font, muted text on elevated surface
     style.code_font = font_small;
     style.code_color = theme_manager_get_color("text");
     style.code_bg_color = theme_manager_get_color("elevated_bg");
     style.code_corner_radius = theme_manager_get_spacing("space_xxs");
 
-    // Fenced code blocks — same elevated surface, with padding
     style.code_block_bg_color = theme_manager_get_color("elevated_bg");
     style.code_block_corner_radius = theme_manager_get_spacing("space_xs");
     style.code_block_pad = theme_manager_get_spacing("space_sm");
 
-    // Blockquotes — left border in muted color
     style.blockquote_border_color = theme_manager_get_color("primary");
     style.blockquote_border_width = 3;
     style.blockquote_pad_left = theme_manager_get_spacing("space_md");
@@ -190,7 +183,6 @@ void ui_markdown_get_theme_style(lv_markdown_style_t& style) {
     // Horizontal rules
     style.hr_color = theme_manager_get_color("text_muted");
 
-    // Spacing — use themed spacing tokens for responsive values
     style.paragraph_spacing = theme_manager_get_spacing("space_sm");
     style.line_spacing = theme_manager_get_spacing("space_xxs");
     style.list_indent = theme_manager_get_spacing("space_lg");

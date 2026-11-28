@@ -81,7 +81,6 @@ void CameraConfigModal::on_show() {
     if (dialog())
         lv_obj_set_user_data(dialog(), this);
 
-    // Load current config
     auto& wc = PanelWidgetManager::instance().get_widget_config(panel_id_);
     load_config(wc.get_widget_config(widget_id_));
     publish_sources(get_printer_state().capabilities_state().get_webcams());

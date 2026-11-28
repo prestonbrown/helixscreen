@@ -22,7 +22,6 @@ UiMultiselect::UiMultiselect(UiMultiselect&& other) noexcept
       on_change_(std::move(other.on_change_)), max_selected_(other.max_selected_),
       checked_pool_(std::move(other.checked_pool_)), next_slot_(other.next_slot_) {
     other.container_ = nullptr;
-    // Update back-pointers
     for (auto& row : rows_) {
         row->owner = this;
     }
@@ -123,7 +122,6 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     RowData* raw_ptr = data.get();
     lv_obj_set_user_data(row, raw_ptr);
 
-    // Row click toggles selection
     lv_obj_add_event_cb(row, on_row_clicked, LV_EVENT_CLICKED, nullptr);
 
     return data;

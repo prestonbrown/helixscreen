@@ -57,8 +57,7 @@ static helix::Subject keypad_has_default_subject;
 
 /// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
 /// overlay on the stack, and the keypad is almost never that - it opens over a temp
-/// graph or a dryer card. While the pad was overlay-width that went unnoticed, because
-/// it covered what it failed to dim.
+/// graph or a dryer card.
 static lv_obj_t* keypad_backdrop = nullptr;
 
 static void destroy_keypad_backdrop() {
@@ -112,7 +111,6 @@ void ui_keypad_init_subjects() {
         return;
     }
 
-    // Initialize display subject for reactive binding (starts empty)
     UI_MANAGED_SUBJECT_STRING(keypad_display_subject, keypad_display_buf, "", "keypad_display",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(keypad_title_subject, keypad_title_buf, "", "keypad_title",
@@ -341,7 +339,6 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
             on_cancel();
     });
 
-    // Show via overlay navigation, but keep previous panel visible (transparent overlay)
     helix::nav::push_overlay(keypad_widget, false /* hide_previous */);
 
     spdlog::info("[Keypad] Showing (initial={:.1f}, range={:.0f}-{:.0f})", config->initial_value,

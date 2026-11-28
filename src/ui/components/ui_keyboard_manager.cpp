@@ -486,21 +486,21 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
         if (mgr.longpress_state_ == LP_PRESSED && mgr.alternatives_ != nullptr) {
             mgr.longpress_state_ = LP_LONG_DETECTED;
 
-            // The real key rect, not a hardcoded 50px box around the touch point.
-            // This is both the popover anchor and the "released back on the key"
-            // hit test below, so a fixed box mis-sized the overlay on large screens
-            // and swallowed neighbouring keys on small ones.
+            // The real key rect, not a fixed box around the touch point. This is both
+            // the popover anchor and the "released back on the key" hit test below, so
+            // a fixed box is the wrong size for the overlay on large screens and
+            // swallows neighboring keys on small ones.
             lv_area_t btn_area;
             if (!buttonmatrix_button_area(keyboard, mgr.pressed_btn_id_, &btn_area)) {
                 // No real rect for this key, so abandon the long-press rather than
-                // invent one. The previous fallback — a fixed 50px box around
-                // press_point_ — turned "unknown" into "wrong": if press_point_ did
-                // not match the button (a second pointer device, a stale sample), the
-                // box landed on a different key, the popover drew over it, and the
-                // release was judged outside, silently cancelling. Staying in
-                // LP_PRESSED instead lets the release fall through to the normal
-                // VALUE_CHANGED path, so the key types its primary character. Losing
-                // the alternate is a far better failure than typing nothing.
+                // invent one. A fixed box around press_point_ would turn "unknown" into
+                // "wrong": if press_point_ did not match the button (a second pointer
+                // device, a stale sample), the box would land on a different key, the
+                // popover would draw over it, and the release would be judged outside,
+                // silently canceling. Staying in LP_PRESSED instead lets the release
+                // fall through to the normal VALUE_CHANGED path, so the key types its
+                // primary character. Losing the alternate is a far better failure than
+                // typing nothing.
                 spdlog::warn("[KeyboardManager] No button rect for id {} — long-press skipped",
                              mgr.pressed_btn_id_);
                 mgr.longpress_state_ = LP_PRESSED;
@@ -537,7 +537,7 @@ void KeyboardManager::longpress_event_handler(lv_event_t* e) {
 
             spdlog::info("[KeyboardManager] Long-press mode active, checking release position");
 
-            // What a release with no sliding commits. Insertion now happens on
+            // What a release with no sliding commits. Insertion happens on
             // release rather than on long-press, so this must also cover the
             // no-indev path below — otherwise the keystroke is silently dropped.
             const char in_place_char =
@@ -715,7 +715,6 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
 
             } else if (btn_text && strcmp(btn_text, ICON_KEYBOARD_RETURN) == 0) {
                 if (mgr.context_textarea_) {
-                    // Multiline textareas: insert newline, keep keyboard open
                     if (!lv_textarea_get_one_line(mgr.context_textarea_)) {
                         lv_textarea_add_char(mgr.context_textarea_, '\n');
                         spdlog::debug("[KeyboardManager] Enter: newline inserted (multiline)");
@@ -727,7 +726,6 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
                     lv_obj_t* ta_before = mgr.context_textarea_;
                     lv_obj_send_event(ta_before, LV_EVENT_READY, nullptr);
                     if (mgr.context_textarea_ != ta_before) {
-                        // Handler switched to a new textarea — keyboard already reassigned
                         spdlog::debug("[KeyboardManager] Enter: advanced to next field");
                         return;
                     }
@@ -745,7 +743,6 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
                 spdlog::trace("[KeyboardManager] Backspace");
             }
         } else {
-            // Regular printing key — insert text into textarea
             if (mgr.context_textarea_ && btn_text) {
                 if (strcmp(btn_text, keyboard_layout_get_spacebar_text()) == 0) {
                     lv_textarea_add_char(mgr.context_textarea_, ' ');
@@ -813,7 +810,7 @@ const lv_font_t* pick_hint_font(int32_t btn_h, int32_t btn_w) {
 
     // Prefer proportional sizing, but fall back to the smallest font that fits at
     // all. On a micro panel even font_xs exceeds a third of the row height, and
-    // returning nothing there erased every hint on the keyboard — strictly worse
+    // returning nothing there erases every hint on the keyboard — strictly worse
     // than a snug one, since an invisible hint teaches the user nothing.
     // compute_hint_area() still refuses anything that cannot physically fit.
     return chosen ? chosen : smallest;
@@ -833,8 +830,8 @@ bool KeyboardManager::compute_hint_area(const lv_area_t& btn, int32_t hint_w, in
     // Gap scales with the KEY, not the glyph. On a cramped micro key the hint has to
     // hug the corner to stay clear of the key's own centred letter; on a large key a
     // wider gap reads as deliberate rather than crammed. Deriving it from the glyph
-    // instead gave every size roughly the same relative gap, which is exactly wrong
-    // — the small keys are the ones short of room.
+    // instead gives every size roughly the same relative gap, which is exactly wrong:
+    // the small keys are the ones short of room.
     int32_t inset = btn_h / 20;
     if (inset < 1) {
         inset = 1;
@@ -931,7 +928,7 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
                 label_dsc.font = hint_font;
                 label_dsc.color = gray_color;
                 // Muted enough to stay secondary to the key's own letter, opaque
-                // enough to read without leaning in. LV_OPA_60 was too faint.
+                // enough to read without leaning in. LV_OPA_60 is too faint.
                 label_dsc.opa = LV_OPA_80;
 
                 char alt_str[2] = {alternatives[0], '\0'};
@@ -1385,10 +1382,8 @@ void KeyboardManager::show(lv_obj_t* textarea) {
 
     spdlog::info("[KeyboardManager] Showing keyboard for textarea: {}", (void*)textarea);
 
-    // Track which textarea receives key input from our custom handler
     context_textarea_ = textarea;
 
-    // Cancel any in-progress hide animation
     lv_anim_delete(keyboard_, nullptr);
 
     KeyboardHint hint = ui_text_input_get_keyboard_hint(textarea);
@@ -1416,7 +1411,6 @@ void KeyboardManager::show(lv_obj_t* textarea) {
         NavigationManager::instance().set_navbar_estop_keyboard_top(kb_area.y1);
     }
 
-    // Animate keyboard sliding up from bottom
     if (keyboard_animations_enabled()) {
         int32_t keyboard_height = lv_obj_get_height(keyboard_);
         lv_obj_set_style_translate_y(keyboard_, keyboard_height, LV_PART_MAIN);
@@ -1500,7 +1494,6 @@ void KeyboardManager::hide() {
         return;
     }
 
-    // Cancel any in-progress show animation
     lv_anim_delete(keyboard_, nullptr);
     DisplaySettingsManager::instance().set_soft_keyboard_visible(false);
 
@@ -1510,7 +1503,6 @@ void KeyboardManager::hide() {
     lv_keyboard_set_textarea(keyboard_, nullptr);
     NavigationManager::instance().set_navbar_estop_keyboard_top(-1);
 
-    // Animate keyboard sliding down (or hide instantly if animations disabled)
     if (keyboard_animations_enabled()) {
         int32_t keyboard_height = lv_obj_get_height(keyboard_);
 
