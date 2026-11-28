@@ -222,9 +222,8 @@ class TipsManager {
      */
     static TipsManager* get_instance();
 
-    /// Lets the content-fit sweep pin rotation to one known tip. The widget
-    /// shows a randomly chosen title, so a layout measurement taken against
-    /// whatever tip came up is a different measurement every run.
+    /// Lets the shared test fixture return the singleton, once a case has used
+    /// it, to its never-loaded state (tests/test_helpers/tips_manager_test_access.h).
     friend struct TipsManagerTestAccess;
 };
 
