@@ -692,7 +692,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: its layers never take a tap", "[ams
     REQUIRE(back != nullptr);
     lv_obj_t* layers = lv_obj_get_parent(back);
     REQUIRE(layers != art);
-    CHECK_FALSE(lv_obj_has_flag(layers, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(layers));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a ghost's dashed rims draw round its own lane",
